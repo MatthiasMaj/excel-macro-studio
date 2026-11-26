@@ -1,5 +1,6 @@
 import { analyzeMacroSecurity } from '../core/security.js';
-import { annotateVbaForBeginners } from './vbaBeginnerAnnotator.js';
+import { applyCommentLevel } from './vbaBeginnerAnnotator.js';
+import { generateOfficeScriptWorkflow } from './officeScriptsGenerator.js';
 import { getOperationById } from '../catalog/index.js';
 import { buildOperationParams, createGenerationContext } from './vbaGenerator.js';
 import { vbaStr, vbaIdent, resolveHelperBlocks } from './vbaUtils.js';
@@ -14,7 +15,11 @@ export function generateWorkflowMacro(steps = [], workflowMeta = {}, options = {
     throw new Error('Ajoutez au moins une étape active pour générer la macro multi-opérations.');
   }
 
-  const excelVersion = options.excelVersion || workflowMeta.excelVersion || 'excel365';
+  const execCtx = options.executionContext || {};
+  const excelVersion = options.excelVersion || workflowMeta.excelVersion || (execCtx.platform === 'web' ? 'excelWeb' : 'excel365');
+  if (excelVersion === 'excelWeb' || execCtx.platform === 'web') {
+    return generateOfficeScriptWorkflow(activeSteps, workflowMeta, options);
+  }
   const mainSub = vbaIdent(`ExecuterWorkflow_${workflowMeta.name || 'Automatisation'}`, 'ExecuterWorkflow');
   const moduleName = vbaIdent(`Mod_Workflow_${workflowMeta.name || 'Auto'}`, 'Mod_Workflow');
 
@@ -165,8 +170,12 @@ export function generateWorkflowMacro(steps = [], workflowMeta = {}, options = {
   }
 
   const rawCode = lines.join('\n');
-  const beginnerMode = options.beginnerComments !== false;
-  const code = beginnerMode ? annotateVbaForBeginners(rawCode) : rawCode;
+  const commentLevel =
+    options.commentLevel ||
+    execCtx.commentLevel ||
+    (options.beginnerComments === false ? 'intermediate' : 'beginner');
+  const beginnerMode = commentLevel === 'beginner';
+  const code = applyCommentLevel(rawCode, commentLevel);
   const security = analyzeMacroSecurity(
     {
       risk: maxRisk,
@@ -180,6 +189,9 @@ export function generateWorkflowMacro(steps = [], workflowMeta = {}, options = {
   return {
     id: `wf_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     mode: options.sourceMode || 'workflow',
+    language: 'vba',
+    fileExtension: 'bas',
+    lifecycleStatus: 'analyzed',
     operationId: 'workflow_composite',
     category: 'MULTI',
     title: `Workflow : ${workflowMeta.name || 'Automatisation multi-opérations'} (${activeSteps.length} étapes)`,
@@ -188,7 +200,9 @@ export function generateWorkflowMacro(steps = [], workflowMeta = {}, options = {
     placement: 'Module',
     excelVersion,
     excelVersionLabel: excelVersion === 'excelMac' ? 'Excel pour Mac' : excelVersion === 'excel2019' ? 'Excel 2019 / 2016' : 'Excel 365 / 2021',
+    commentLevel,
     beginnerComments: beginnerMode,
+    executionContext: execCtx,
     code,
     summary: `Macro composite enchaînant ${activeSteps.length} opérations dans un module unifié avec gestion d'erreurs par étape.`,
     stepsExplanation,

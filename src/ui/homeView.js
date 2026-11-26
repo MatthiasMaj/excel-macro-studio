@@ -26,35 +26,35 @@ export function renderHomeView(container, { navigate }) {
     <div class="stack-lg">
       <section class="hero-banner">
         <div>
-          <span class="hero-badge">100 % en français · Hors-ligne pour le catalogue · VBA propre</span>
-          <h1 class="page-title">Créez des macros Excel VBA fiables, sans savoir programmer</h1>
+          <span class="hero-badge">100 % en français · Hors-ligne &amp; Confidentialité totale · Windows, Mac &amp; Web</span>
+          <h1 class="page-title">Apprenez Excel, automatisez en VBA ou Office Scripts, en toute fiabilité</h1>
           <p class="page-subtitle">
-            Assistant universel d'automatisation Excel pour particuliers, assistants, comptables, RH, gestionnaires, ingénieurs, responsables de production et analystes de données.
+            Environnement complet de travail et de formation professionnelle : Académie Excel progressive (avec et sans code), Assistant d'automatisation en français, Audit VBA et Analyseur de classeurs.
           </p>
           <div class="hero-actions">
-            <button type="button" class="btn-primary" data-nav="guided">Démarrer le mode guidé</button>
-            <button type="button" class="btn-secondary" data-nav="workflow">Créer un workflow multi-opérations</button>
-            <button type="button" class="btn-secondary" data-nav="free">Décrire en langage naturel</button>
-            <button type="button" class="btn-secondary" data-nav="tutorial">Suivre le cursus Excel &amp; VBA (12 chapitres)</button>
+            <button type="button" class="btn-primary" data-nav="tutorial">Ouvrir l'Académie Excel (2 parcours)</button>
+            <button type="button" class="btn-secondary" data-nav="free">Lancer l'Assistant automatisation</button>
+            <button type="button" class="btn-secondary" data-nav="guided">Mode rapide (129 opérations)</button>
+            <button type="button" class="btn-secondary" data-nav="auditor">Auditer / Corriger une macro VBA</button>
             <button type="button" class="btn-ghost" data-nav="analyzer">Analyser un fichier Excel</button>
           </div>
         </div>
         <div class="hero-stats">
           <div class="stat-card">
-            <div class="stat-value">12</div>
-            <div class="stat-label">Catégories métiers complètes (A à L)</div>
+            <div class="stat-value">27</div>
+            <div class="stat-label">Chapitres (15 Excel + 12 VBA) &amp; Projet NovaTech</div>
           </div>
           <div class="stat-card">
             <div class="stat-value">${ALL_OPERATIONS.length}</div>
-            <div class="stat-label">Opérations prêtes à paramétrer</div>
+            <div class="stat-label">Opérations sur 12 catégories + Scénarios métier</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">3</div>
-            <div class="stat-label">Modes : Guidé, Multi-étapes, Libre</div>
+            <div class="stat-value">9</div>
+            <div class="stat-label">Formats d'exercices interactifs &amp; suivi adaptatif</div>
           </div>
           <div class="stat-card">
             <div class="stat-value">0</div>
-            <div class="stat-label">Exécution automatique de macros (sécurité stricte)</div>
+            <div class="stat-label">Exécution automatique de macros (contrôle statique strict)</div>
           </div>
         </div>
       </section>
@@ -62,28 +62,28 @@ export function renderHomeView(container, { navigate }) {
       <section class="stack-md">
         <div class="page-header">
           <div>
-            <h2>Comment fonctionne Excel Macro Studio ?</h2>
-            <p class="page-subtitle">Trois méthodes complémentaires selon votre besoin et votre niveau.</p>
+            <h2>Deux grands piliers complémentaires</h2>
+            <p class="page-subtitle">Avancez à votre rythme, sans être obligé de savoir coder pour utiliser Excel ou automatiser vos tâches.</p>
           </div>
         </div>
         <div class="cards-grid-3">
           <article class="panel stack-sm">
-            <span class="badge badge-success">Mode 1 · Débutants &amp; Rapide</span>
-            <h3>Génération guidée par formulaire</h3>
-            <p class="field-hint">Choisissez une opération, remplissez des champs clairs (alimentés par votre fichier Excel si importé) et récupérez le VBA commenté.</p>
-            <button type="button" class="btn-secondary btn-sm" data-nav="guided">Ouvrir le mode guidé</button>
+            <span class="badge badge-success">Pilier 1 · Académie Excel</span>
+            <h3>Parcours A (Excel) &amp; Parcours B (VBA)</h3>
+            <p class="field-hint">15 chapitres pour maîtriser formules, TCD, tableaux structurés, Power Query et KPI, puis 12 chapitres VBA + 12 notions expertes autour de NovaTech.</p>
+            <button type="button" class="btn-secondary btn-sm" data-nav="tutorial">Découvrir l'Académie</button>
           </article>
           <article class="panel stack-sm">
-            <span class="badge badge-info">Mode 2 · Workflows complets</span>
-            <h3>Générateur multi-opérations</h3>
-            <p class="field-hint">Enchaînez plusieurs actions (ex. Importer CSV → Supprimer vides → Doublons → Tri → Graphique → PDF) dans un module unique.</p>
-            <button type="button" class="btn-secondary btn-sm" data-nav="workflow">Construire un workflow</button>
+            <span class="badge badge-info">Pilier 2 · Assistant Intelligent</span>
+            <h3>Du besoin métier au code adapté</h3>
+            <p class="field-hint">Décrivez votre besoin : l'assistant le reformule, pose les bonnes questions et génère du VBA (Desktop) ou des Office Scripts (Excel Web).</p>
+            <button type="button" class="btn-secondary btn-sm" data-nav="free">Ouvrir l'Assistant</button>
           </article>
           <article class="panel stack-sm">
-            <span class="badge badge-warning">Mode 3 · Langage naturel</span>
-            <h3>Description libre</h3>
-            <p class="field-hint">Décrivez votre besoin en français. Le moteur identifie les opérations, demande les précisions manquantes et génère le code.</p>
-            <button type="button" class="btn-secondary btn-sm" data-nav="free">Essayer le mode libre</button>
+            <span class="badge badge-warning">Audit &amp; Scénarios métier</span>
+            <h3>Corriger l'existant et réutiliser</h3>
+            <p class="field-hint">Collez une macro existante pour détecter bugs, .Select et risques avec diff avant/après, ou piochez dans 7 domaines métier.</p>
+            <button type="button" class="btn-secondary btn-sm" data-nav="auditor">Auditer une macro</button>
           </article>
         </div>
       </section>
@@ -112,4 +112,3 @@ export function renderHomeView(container, { navigate }) {
     });
   });
 }
-

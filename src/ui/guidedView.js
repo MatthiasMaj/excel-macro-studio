@@ -94,15 +94,22 @@ export function renderGuidedView(container, { onNotify, navigate }) {
         const mergedAdv = { ...state.guidedAdvanced, ...advVals };
         const result = generateSingleMacro(selectedOp, vals, {
           excelVersion: state.excelVersion,
+          executionContext: state.executionContext,
           macroName: mergedAdv.macroName,
           confirmDestructive: mergedAdv.confirmDestructive,
           includeTiming: mergedAdv.includeTiming,
+          commentLevel: mergedAdv.beginnerComments ? 'beginner' : (state.executionContext?.commentLevel || 'intermediate'),
           beginnerComments: mergedAdv.beginnerComments,
           sourceMode: 'guided'
         });
         addHistoryEntry(result);
         renderResultPanel(resultMount, result, { onNotify });
-        onNotify?.('Macro VBA générée avec succès.', 'success');
+        onNotify?.(
+          result.language === 'officescripts'
+            ? 'Office Script (Excel Web) généré avec succès.'
+            : 'Macro VBA générée avec succès.',
+          'success'
+        );
       }
     });
 

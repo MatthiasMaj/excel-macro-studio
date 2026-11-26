@@ -10,7 +10,8 @@ function norm(text) {
 }
 
 const INTENT_RULES = [
-  { opId: 'workbook_centralize', patterns: [/parcourir.*fichier.*dossier/i, /tous les fichiers excel.*dossier/i, /centraliser.*classeur/i, /recuperer.*donnees.*feuille/i, /regrouper.*nouveau classeur/i] },
+  { opId: 'workbook_centralize', patterns: [/parcourir.*fichier.*dossier/i, /tous les fichiers excel.*dossier/i, /centraliser.*classeur/i, /recuperer.*donnees.*feuille/i, /regrouper.*nouveau classeur/i, /recois.*fichier/i, /interventions?.*maintenance/i] },
+  { opId: 'sheet_merge_multiple', patterns: [/fusionner.*feuilles/i, /regrouper.*onglets/i, /ajouter.*historique/i, /recuperer.*nouvelles? lignes?/i, /ajouter a mon historique/i] },
   { opId: 'imp_csv', patterns: [/importer.*csv/i, /ouvrir.*csv/i, /charger.*csv/i] },
   { opId: 'imp_xml', patterns: [/importer.*xml/i] },
   { opId: 'imp_json', patterns: [/importer.*json/i] },
@@ -20,7 +21,6 @@ const INTENT_RULES = [
   { opId: 'cells_trim_spaces', patterns: [/nettoyer.*espaces/i, /supprimer.*espaces/i] },
   { opId: 'cells_detect_errors', patterns: [/detecter.*erreurs/i, /trouver.*#n\/a/i] },
   { opId: 'sheet_compare_two', patterns: [/comparer.*deux feuilles/i, /comparer.*feuil/i] },
-  { opId: 'sheet_merge_multiple', patterns: [/fusionner.*feuilles/i, /regrouper.*onglets/i] },
   { opId: 'data_sort_auto', patterns: [/trier.*donnees/i, /trier.*tableau/i, /trier par/i] },
   { opId: 'data_filter', patterns: [/filtrer/i] },
   { opId: 'data_pivot_create', patterns: [/tableau croise dynamique/i, /\btcd\b/i] },
@@ -29,18 +29,18 @@ const INTENT_RULES = [
   { opId: 'fmt_table_auto', patterns: [/appliquer.*mise en forme/i, /formater.*tableau/i, /mettre en forme/i] },
   { opId: 'fmt_print_setup', patterns: [/preparer.*impression/i, /mise en page/i] },
   { opId: 'date_working_days', patterns: [/jours ouvres/i] },
-  { opId: 'date_detect_delays', patterns: [/detecter.*retards/i, /echeances? depassees?/i] },
+  { opId: 'date_detect_delays', patterns: [/detecter.*retards/i, /echeances? depassees?/i, /impayes?/i] },
   { opId: 'fin_calc_vat', patterns: [/calculer.*tva/i, /\btva\b/i] },
   { opId: 'fin_calc_margins', patterns: [/calculer.*marge/i] },
   { opId: 'fin_bank_reconciliation', patterns: [/rapprochement bancaire/i] },
   { opId: 'stock_alert_thresholds', patterns: [/seuils? d.?alerte/i, /rupture.*stock/i] },
   { opId: 'chart_create', patterns: [/creer.*graphique/i, /generer.*graphique/i, /graphique recapitulatif/i] },
-  { opId: 'export_pdf', patterns: [/exporter.*pdf/i, /generer.*pdf/i, /enregistrer.*pdf/i] },
+  { opId: 'export_pdf', patterns: [/exporter.*pdf/i, /generer.*pdf/i, /enregistrer.*pdf/i, /rapport pdf/i] },
   { opId: 'export_csv', patterns: [/exporter.*csv/i] },
-  { opId: 'export_outlook_email', patterns: [/envoyer.*mail/i, /outlook/i, /creer.*email/i] },
+  { opId: 'export_outlook_email', patterns: [/envoyer.*mail/i, /outlook/i, /creer.*email/i, /relance/i] },
   { opId: 'export_word_doc', patterns: [/generer.*word/i, /exporter.*word/i] },
   { opId: 'adv_workbook_open', patterns: [/ouverture.*classeur/i, /workbook_open/i] },
-  { opId: 'adv_worksheet_change', patterns: [/modification.*cellule/i, /worksheet_change/i] },
+  { opId: 'adv_worksheet_change', patterns: [/modification.*cellule/i, /worksheet_change/i, /horodater/i] },
   { opId: 'adv_browse_directories', patterns: [/lister.*fichiers.*dossier/i, /inventaire.*dossier/i] }
 ];
 
@@ -249,11 +249,54 @@ export function analyzeNaturalLanguageRequest(prompt, workbookContext = null) {
     });
   }
 
+  // Construction du diagnostic structuré (résultat attendu, risques, ambiguïtés, reformulation)
+  const opNames = detectedSteps.map((s) => s.opName);
+  const risks = [];
+  if (detectedSteps.some((s) => getOperationById(s.opId)?.destructive)) {
+    risks.push('Opération modifiant ou supprimant des lignes : une sauvegarde ou confirmation MsgBox est recommandée.');
+  }
+  if (detectedIds.some((id) => ['export_pdf', 'export_outlook_email', 'workbook_centralize'].includes(id))) {
+    risks.push('Dépendance environnement : les accès fichiers locaux, PDF disque et Outlook requièrent Excel Desktop (non disponibles dans Excel Web sans Power Automate).');
+  }
+
+  const ambiguities = missingQuestions.map((q) => `${q.opName} : préciser « ${q.label.split('—').pop()?.trim() || q.fieldName} »`);
+  if (entities.sheets.length === 0 && !workbookContext?.sheets?.length) {
+    ambiguities.push('Aucun nom de feuille précis mentionné : à confirmer pour éviter de cibler le mauvais onglet.');
+  }
+
+  const targetDesc = entities.sheets.length > 0
+    ? `sur les onglets ${entities.sheets.join(', ')}`
+    : workbookContext?.sheets?.length
+      ? `en s'appuyant sur le classeur analysé « ${workbookContext.fileName} »`
+      : 'sur les feuilles que vous allez confirmer';
+
+  const reformulation = detectedSteps.length > 0
+    ? `Automatisation récurrente ${targetDesc} comprenant ${detectedSteps.length} étape(s) : ${opNames.join(' → ')}.`
+    : 'Demande encore imprécise : décrivez les actions souhaitées (ex. importer, ajouter à l\'historique, supprimer les doublons, générer un PDF).';
+
+  const requirementBreakdown = {
+    expectedOutcome: opNames.length > 0 ? opNames[opNames.length - 1] : 'À préciser',
+    neededData: entities.sheets.length > 0
+      ? `Feuilles : ${entities.sheets.join(', ')}${entities.columns.length ? ` · Colonnes : ${entities.columns.join(', ')}` : ''}`
+      : 'À confirmer ci-dessous (noms de feuilles / colonnes ou fichier source)',
+    sheets: entities.sheets,
+    columns: entities.columns,
+    operations: opNames,
+    conditions: [
+      /chaque semaine|hebdo|tous les mois|chaque jour|recurrent/i.test(raw) ? 'Exécution récurrente' : 'Exécution à la demande',
+      ...(entities.colors.length ? [`Couleur signalée : ${entities.colors.join(', ')}`] : [])
+    ],
+    risks: risks.length > 0 ? risks : ['Risque faible (lecture/calcul ou mise en forme).'],
+    ambiguities,
+    reformulation
+  };
+
   return {
     prompt: raw,
     detectedSteps,
     entities,
     missingQuestions,
+    requirementBreakdown,
     confidence: detectedSteps.length > 0 ? Math.min(0.95, 0.45 + detectedSteps.length * 0.15) : 0
   };
 }

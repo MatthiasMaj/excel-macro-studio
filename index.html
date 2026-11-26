@@ -50,7 +50,7 @@
           </button>
           <button type="button" class="nav-item" data-view="tutorial">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-            <span>Cursus Excel &amp; VBA (12 ch.)</span>
+            <span>Académie Excel (A &amp; B)</span>
           </button>
           <button type="button" class="nav-item" data-view="catalog">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -60,35 +60,39 @@
         </div>
 
         <div class="nav-group">
-          <span class="nav-group-label">Génération</span>
+          <span class="nav-group-label">Automatisation</span>
+          <button type="button" class="nav-item" data-view="free">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 4.5L18.5 9l-4.6 1.5L12 15l-1.9-4.5L5.5 9l4.6-1.5z"/><path d="M19 16l.9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9z"/></svg>
+            <span>Assistant (Langage naturel)</span>
+          </button>
           <button type="button" class="nav-item" data-view="guided">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            <span>Mode guidé</span>
+            <span>Mode rapide (Guidé)</span>
           </button>
           <button type="button" class="nav-item" data-view="workflow">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="12" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.7 7.3l6.6 3.4M15.3 13.3l-6.6 3.4"/></svg>
             <span>Multi-opérations</span>
             <span class="nav-badge" id="nav-workflow-count" hidden>0</span>
           </button>
-          <button type="button" class="nav-item" data-view="free">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 4.5L18.5 9l-4.6 1.5L12 15l-1.9-4.5L5.5 9l4.6-1.5z"/><path d="M19 16l.9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9z"/></svg>
-            <span>Mode libre (NL)</span>
+          <button type="button" class="nav-item" data-view="auditor">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>Audit &amp; Correction VBA</span>
           </button>
         </div>
 
         <div class="nav-group">
-          <span class="nav-group-label">Classeur &amp; Mémoire</span>
+          <span class="nav-group-label">Classeur &amp; Projets</span>
           <button type="button" class="nav-item" data-view="analyzer">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
             <span>Analyseur Excel</span>
           </button>
           <button type="button" class="nav-item" data-view="library">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            <span>Bibliothèque</span>
+            <span>Scénarios métier</span>
           </button>
           <button type="button" class="nav-item" data-view="history">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-            <span>Historique</span>
+            <span>Mes créations</span>
             <span class="nav-badge" id="nav-history-count" hidden>0</span>
           </button>
         </div>
@@ -127,8 +131,8 @@
               type="search"
               id="global-search-input"
               class="global-search-input"
-              placeholder="Rechercher une opération VBA (ex: doublons, PDF, Outlook, TVA...)"
-              aria-label="Rechercher une opération VBA"
+              placeholder="Rechercher une leçon, scénario métier ou opération (ex: RECHERCHEX, maintenance, PDF...)"
+              aria-label="Recherche globale dans Excel Macro Studio"
               autocomplete="off"
             >
             <kbd class="search-shortcut" aria-hidden="true">/</kbd>
@@ -137,9 +141,9 @@
         </div>
 
         <div class="topbar-right">
-          <button type="button" class="btn-secondary btn-sm" id="topbar-tutorial-btn" title="Ouvrir le tutoriel complet pas à pas">
+          <button type="button" class="btn-secondary btn-sm" id="topbar-tutorial-btn" title="Ouvrir l'Académie Excel & VBA">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            <span>Tutoriel</span>
+            <span>Académie</span>
           </button>
 
           <button type="button" class="workbook-pill" id="topbar-workbook-pill" title="Ouvrir l'analyseur de fichier Excel">
@@ -153,6 +157,7 @@
               <option value="excel365">Excel 365 / 2021</option>
               <option value="excel2019">Excel 2019 / 2016</option>
               <option value="excelMac">Excel pour Mac</option>
+              <option value="excelWeb">Excel Web (Office Scripts)</option>
             </select>
           </label>
         </div>

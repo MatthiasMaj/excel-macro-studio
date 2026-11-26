@@ -131,6 +131,46 @@ export function renderAnalyzerView(container, { onNotify, navigate }) {
 
                   <h3>Aperçu des données</h3>
                   ${previewTable}
+
+                  ${
+                    sheet.inconsistencies?.length
+                      ? `<div class="alert-banner alert-warning">
+                           <strong>Incohérences ou points de vigilance détectés sur « ${escapeHtml(sheet.name)} »</strong>
+                           <ul style="margin:0.25rem 0 0;padding-left:1.1rem">
+                             ${sheet.inconsistencies.map((inc) => `<li>${escapeHtml(inc)}</li>`).join('')}
+                           </ul>
+                         </div>`
+                      : ''
+                  }
+
+                  <div class="before-after-grid">
+                    <div class="panel" style="padding:0.75rem 1rem;background:var(--surface-subtle)">
+                      <strong>Formules &amp; fusions (${escapeHtml(sheet.name)})</strong>
+                      <p class="field-hint" style="margin:0.25rem 0">
+                        ${sheet.formulaCount || 0} formule(s) détectée(s) · ${sheet.mergedCells?.length || 0} cellule(s) fusionnée(s)
+                      </p>
+                      ${
+                        sheet.formulaSamples?.length
+                          ? `<ul style="margin:0;padding-left:1.1rem;font-size:0.8rem">
+                               ${sheet.formulaSamples.slice(0, 5).map((f) => `<li><code>${escapeHtml(f.cell)}</code> : <code>${escapeHtml(f.formula)}</code></li>`).join('')}
+                             </ul>`
+                          : ''
+                      }
+                    </div>
+                    <div class="panel" style="padding:0.75rem 1rem;background:var(--surface-subtle)">
+                      <strong>Plages nommées &amp; limites du format</strong>
+                      ${
+                        wb.namedRanges?.length
+                          ? `<ul style="margin:0.25rem 0;padding-left:1.1rem;font-size:0.8rem">
+                               ${wb.namedRanges.map((nr) => `<li><code>${escapeHtml(nr.name)}</code> → <code>${escapeHtml(nr.ref)}</code></li>`).join('')}
+                             </ul>`
+                          : '<p class="field-hint" style="margin:0.25rem 0">Aucune plage nommée définie.</p>'
+                      }
+                      <ul style="margin:0.25rem 0 0;padding-left:1.1rem;font-size:0.78rem">
+                        ${(wb.formatLimitations || []).map((l) => `<li>${escapeHtml(l)}</li>`).join('')}
+                      </ul>
+                    </div>
+                  </div>
                 `
                     : ''
                 }

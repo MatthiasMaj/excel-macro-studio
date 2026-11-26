@@ -8,6 +8,9 @@ import {
   getSystemPreference
 } from './core/theme.js';
 import { getState, setState, subscribe } from './core/store.js';
+import { EXCEL_CURRICULUM_CHAPTERS } from './services/excelCurriculumData.js';
+import { CURRICULUM_CHAPTERS } from './services/curriculumData.js';
+import { MACRO_TEMPLATES } from './services/templatesLibrary.js';
 import { renderHomeView } from './ui/homeView.js';
 import { renderCatalogView } from './ui/catalogView.js';
 import { renderGuidedView } from './ui/guidedView.js';
@@ -17,6 +20,7 @@ import { renderAnalyzerView } from './ui/analyzerView.js';
 import { renderLibraryView } from './ui/libraryView.js';
 import { renderHistoryView } from './ui/historyView.js';
 import { renderTutorialView } from './ui/tutorialView.js';
+import { renderAuditorView } from './ui/auditorView.js';
 import { renderResultPanel } from './ui/resultPanel.js';
 
 const mainContent = document.getElementById('main-content');
@@ -189,6 +193,9 @@ function renderCurrentView() {
     case 'history':
       renderHistoryView(mainContent, ctx);
       break;
+    case 'auditor':
+      renderAuditorView(mainContent, ctx);
+      break;
     case 'tutorial':
     case 'learn':
       renderTutorialView(mainContent, ctx);
@@ -242,7 +249,7 @@ if (versionSel) {
 document.getElementById('topbar-workbook-pill')?.addEventListener('click', () => navigate('analyzer'));
 document.getElementById('topbar-tutorial-btn')?.addEventListener('click', () => navigate('tutorial'));
 
-// Recherche globale rapide
+// Recherche globale unifiée (Leçons Académie + Scénarios métier + Opérations VBA)
 const globalSearchInput = document.getElementById('global-search-input');
 const globalSearchResults = document.getElementById('global-search-results');
 
@@ -254,20 +261,51 @@ if (globalSearchInput && globalSearchResults) {
       globalSearchResults.innerHTML = '';
       return;
     }
-    const matches = searchOperations(q).slice(0, 8);
-    globalSearchResults.hidden = false;
-    globalSearchResults.innerHTML = matches.length
-      ? matches
-          .map(
-            (op) => `
-          <button type="button" class="search-result-item" data-jump-op="${escapeHtml(op.id)}">
-            <strong>${escapeHtml(op.name)}</strong>
-            <span class="field-hint">Catégorie ${escapeHtml(op.category)} · ${escapeHtml(op.shortDesc)}</span>
+    const qLow = q.toLowerCase();
+    const academyMatches = [
+      ...EXCEL_CURRICULUM_CHAPTERS.map((c) => ({ ...c, track: 'excel', trackLabel: 'Parcours A (Excel)' })),
+      ...CURRICULUM_CHAPTERS.map((c) => ({ ...c, track: 'vba', trackLabel: 'Parcours B (VBA)' }))
+    ]
+      .filter((c) => `${c.title} ${c.summary} ${c.levelName}`.toLowerCase().includes(qLow))
+      .slice(0, 3);
+
+    const scenarioMatches = MACRO_TEMPLATES.filter((t) =>
+      `${t.title} ${t.description} ${t.domain || ''}`.toLowerCase().includes(qLow)
+    ).slice(0, 3);
+
+    const opMatches = searchOperations(q).slice(0, 6);
+
+    const itemsHtml = [
+      ...academyMatches.map(
+        (c) => `
+          <button type="button" class="search-result-item" data-jump-lesson="${escapeHtml(c.id)}" data-jump-track="${escapeHtml(c.track)}">
+            <strong>🎓 ${escapeHtml(c.title)}</strong>
+            <span class="field-hint">${escapeHtml(c.trackLabel)} · ${escapeHtml(c.levelName)}</span>
           </button>
         `
-          )
-          .join('')
-      : '<div class="search-result-item"><span>Aucune opération trouvée.</span></div>';
+      ),
+      ...scenarioMatches.map(
+        (t) => `
+          <button type="button" class="search-result-item" data-jump-tpl="${escapeHtml(t.id)}">
+            <strong>💼 ${escapeHtml(t.title)}</strong>
+            <span class="field-hint">Scénario · ${escapeHtml(t.domain || t.profile)}</span>
+          </button>
+        `
+      ),
+      ...opMatches.map(
+        (op) => `
+          <button type="button" class="search-result-item" data-jump-op="${escapeHtml(op.id)}">
+            <strong>⚡ ${escapeHtml(op.name)}</strong>
+            <span class="field-hint">Opération Cat. ${escapeHtml(op.category)} · ${escapeHtml(op.shortDesc)}</span>
+          </button>
+        `
+      )
+    ];
+
+    globalSearchResults.hidden = false;
+    globalSearchResults.innerHTML = itemsHtml.length
+      ? itemsHtml.join('')
+      : '<div class="search-result-item"><span>Aucun résultat trouvé.</span></div>';
 
     globalSearchResults.querySelectorAll('[data-jump-op]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -275,6 +313,23 @@ if (globalSearchInput && globalSearchResults) {
         globalSearchResults.hidden = true;
         globalSearchInput.value = '';
         navigate('guided');
+      });
+    });
+
+    globalSearchResults.querySelectorAll('[data-jump-lesson]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setState({ academyTarget: { trackId: btn.dataset.jumpTrack, chapterId: btn.dataset.jumpLesson } }, 'academyTarget');
+        globalSearchResults.hidden = true;
+        globalSearchInput.value = '';
+        navigate('tutorial');
+      });
+    });
+
+    globalSearchResults.querySelectorAll('[data-jump-tpl]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        globalSearchResults.hidden = true;
+        globalSearchInput.value = '';
+        navigate('library');
       });
     });
   });

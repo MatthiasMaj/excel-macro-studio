@@ -1,5 +1,6 @@
 import { analyzeMacroSecurity } from '../core/security.js';
-import { annotateVbaForBeginners } from './vbaBeginnerAnnotator.js';
+import { applyCommentLevel } from './vbaBeginnerAnnotator.js';
+import { generateOfficeScript } from './officeScriptsGenerator.js';
 import {
   vbaStr,
   vbaIdent,
@@ -14,7 +15,8 @@ import {
 const EXCEL_VERSION_LABELS = {
   excel365: 'Excel 365 / 2021',
   excel2019: 'Excel 2019 / 2016',
-  excelMac: 'Excel pour Mac'
+  excelMac: 'Excel pour Mac',
+  excelWeb: 'Excel Web (Office Scripts TypeScript)'
 };
 
 export function buildOperationParams(operation, rawParams = {}) {
@@ -110,12 +112,17 @@ function getRunInstructions(placement = 'Module', subName = '') {
  * Génère une macro VBA complète, commentée, sécurisée et prête à importer.
  */
 export function generateSingleMacro(operation, rawParams = {}, options = {}) {
+  const execCtx = options.executionContext || {};
+  const excelVersion = options.excelVersion || (execCtx.platform === 'web' ? 'excelWeb' : 'excel365');
+  if (excelVersion === 'excelWeb' || execCtx.platform === 'web') {
+    return generateOfficeScript(operation, rawParams, options);
+  }
+
   const params = buildOperationParams(operation, rawParams);
-  const ctx = createGenerationContext(params, options);
+  const ctx = createGenerationContext(params, { ...options, excelVersion });
   const generated = operation.generate(ctx);
 
   const placement = generated.placement || operation.placement || 'Module';
-  const excelVersion = options.excelVersion || 'excel365';
   const versionLabel = EXCEL_VERSION_LABELS[excelVersion] || EXCEL_VERSION_LABELS.excel365;
   const subName = generated.subName || vbaIdent(options.macroName || operation.id, 'Macro');
   const moduleName = vbaIdent(`Mod_${operation.id}`, 'Mod_Macro');
@@ -214,8 +221,12 @@ export function generateSingleMacro(operation, rawParams = {}, options = {}) {
   }
 
   const rawCode = lines.join('\n');
-  const beginnerMode = options.beginnerComments !== false;
-  const code = beginnerMode ? annotateVbaForBeginners(rawCode) : rawCode;
+  const commentLevel =
+    options.commentLevel ||
+    execCtx.commentLevel ||
+    (options.beginnerComments === false ? 'intermediate' : 'beginner');
+  const beginnerMode = commentLevel === 'beginner';
+  const code = applyCommentLevel(rawCode, commentLevel);
   const security = analyzeMacroSecurity(operation, code);
 
   const paramsUsed = (operation.fields || []).map((f) => ({
@@ -228,10 +239,16 @@ export function generateSingleMacro(operation, rawParams = {}, options = {}) {
   if (security.macIssues.length > 0) {
     limitations.push(...security.macIssues);
   }
+  if (execCtx.dataVolume === 'large') {
+    limitations.push('Volume élevé (> 20 000 lignes) : ScreenUpdating et Calculation sont automatiquement désactivés ; privilégiez les tableaux mémoire Variant si vous personnalisez une boucle.');
+  }
 
   return {
     id: `res_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     mode: options.sourceMode || 'guided',
+    language: 'vba',
+    fileExtension: placement === 'Module' ? 'bas' : 'cls',
+    lifecycleStatus: 'analyzed',
     operationId: operation.id,
     category: operation.category,
     title: operation.name,
@@ -240,7 +257,9 @@ export function generateSingleMacro(operation, rawParams = {}, options = {}) {
     placement,
     excelVersion,
     excelVersionLabel: versionLabel,
+    commentLevel,
     beginnerComments: beginnerMode,
+    executionContext: execCtx,
     code,
     summary: generated.explanation || operation.description,
     stepsExplanation: [generated.explanation || operation.description],

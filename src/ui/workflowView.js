@@ -265,6 +265,8 @@ export function renderWorkflowView(container, { onNotify }) {
         const st = getState();
         const result = generateWorkflowMacro(st.workflowSteps, st.workflowMeta, {
           excelVersion: st.excelVersion,
+          executionContext: st.executionContext,
+          commentLevel: st.executionContext?.commentLevel || 'beginner',
           beginnerComments: st.beginnerComments
         });
         lastGenerated = result;

@@ -211,3 +211,28 @@ export function annotateVbaForBeginners(code) {
   return out.join('\n');
 }
 
+/**
+ * Applique le niveau de commentaires souhaité sur le code VBA généré :
+ * - 'beginner'     : ajoute les annotations pédagogiques ligne par ligne (' [Explication] ...)
+ * - 'intermediate' : conserve les commentaires structurels utiles sans les explications pas-à-pas
+ * - 'advanced'     : code concis en retirant les commentaires d'explication non essentiels (hors en-tête)
+ */
+export function applyCommentLevel(code, level = 'beginner') {
+  const clean = stripBeginnerAnnotations(code);
+  if (level === 'beginner') {
+    return annotateVbaForBeginners(clean);
+  }
+  if (level === 'advanced') {
+    const lines = clean.split(/\r?\n/);
+    return lines
+      .filter((line, idx) => {
+        if (idx < 14) return true; // Conserver le bandeau d'en-tête
+        const trimmed = line.trimStart();
+        if (!trimmed.startsWith("'")) return true;
+        return /^'\s*(?:Note|Avertissement|---\s*Utilitaires|---\s*Fonctions)/i.test(trimmed);
+      })
+      .join('\n');
+  }
+  return clean;
+}
+

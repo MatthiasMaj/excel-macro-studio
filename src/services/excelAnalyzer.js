@@ -136,11 +136,23 @@ export function extractSheetColumns(ws, headerRowZeroBased) {
   };
 }
 
-function detectFormulaReferences(ws, currentSheetName, allSheetNames) {
+function detectFormulaDetails(ws, currentSheetName, allSheetNames) {
   const refs = new Set();
+  const formulaSamples = [];
+  const formulaErrors = [];
+  let formulaCount = 0;
+
   for (const [addr, cell] of Object.entries(ws)) {
-    if (addr.startsWith('!') || !cell?.f) continue;
+    if (addr.startsWith('!') || !cell) continue;
+    if (cell.t === 'e') {
+      formulaErrors.push({ cell: addr, value: String(cell.w || cell.v || '#ERR') });
+    }
+    if (!cell.f) continue;
+    formulaCount++;
     const f = String(cell.f);
+    if (formulaSamples.length < 10) {
+      formulaSamples.push({ cell: addr, formula: `=${f}` });
+    }
     for (const other of allSheetNames) {
       if (other === currentSheetName) continue;
       const escaped = other.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -150,7 +162,75 @@ function detectFormulaReferences(ws, currentSheetName, allSheetNames) {
       }
     }
   }
-  return [...refs];
+  return { refs: [...refs], formulaCount, formulaSamples, formulaErrors };
+}
+
+function detectMergedCells(ws) {
+  const merges = ws['!merges'] || [];
+  return merges.map((m) => XLSX.utils.encode_range(m));
+}
+
+function detectSheetInconsistencies(ws, headerRowIdx, extracted, mergedCells, formulaErrors) {
+  const issues = [];
+  if (mergedCells.length > 0) {
+    issues.push(`${mergedCells.length} plage(s) de cellules fusionnées détectée(s) (${mergedCells.slice(0, 3).join(', ')}) : risque pour les tris et TCD.`);
+  }
+  const seenHeaders = new Set();
+  const duplicateHeaders = [];
+  let emptyHeaders = 0;
+  for (const col of extracted.columns) {
+    if (col.name.startsWith('Colonne_')) emptyHeaders++;
+    const low = col.name.toLowerCase();
+    if (seenHeaders.has(low)) duplicateHeaders.push(col.name);
+    seenHeaders.add(low);
+  }
+  if (emptyHeaders > 0) {
+    issues.push(`${emptyHeaders} colonne(s) sans en-tête explicite sur la ligne ${headerRowIdx + 1}.`);
+  }
+  if (duplicateHeaders.length > 0) {
+    issues.push(`En-tête(s) en double détecté(s) : ${[...new Set(duplicateHeaders)].join(', ')}.`);
+  }
+  if (formulaErrors.length > 0) {
+    issues.push(`${formulaErrors.length} erreur(s) de formule repérée(s) (${formulaErrors.slice(0, 3).map((e) => `${e.cell}:${e.value}`).join(', ')}).`);
+  }
+
+  // Lignes vides internes au bloc de données
+  const ref = ws['!ref'];
+  if (ref && extracted.rowCount > 2) {
+    const range = XLSX.utils.decode_range(ref);
+    let internalEmptyRows = 0;
+    for (let r = headerRowIdx + 1; r <= Math.min(range.e.r, headerRowIdx + 200); r++) {
+      let hasVal = false;
+      for (let c = range.s.c; c <= Math.min(range.e.c, range.s.c + 20); c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        if (cell && cell.v !== undefined && String(cell.v).trim() !== '') {
+          hasVal = true;
+          break;
+        }
+      }
+      if (!hasVal) internalEmptyRows++;
+    }
+    if (internalEmptyRows > 0) {
+      issues.push(`${internalEmptyRows} ligne(s) entièrement vide(s) au milieu du tableau (peut couper Ctrl+A et AutoFilter).`);
+    }
+  }
+  return issues;
+}
+
+function getFormatLimitations(fileName, hasEmbeddedMacros) {
+  const lower = String(fileName || '').toLowerCase();
+  const limits = [];
+  if (lower.endsWith('.xlsm') || hasEmbeddedMacros) {
+    limits.push('Fichier .xlsm : pour des raisons de sécurité et de format binaire vbaProject.bin, le navigateur détecte la présence d\'un projet VBA mais n\'extrait pas ni n\'exécute le code VBA interne.');
+  }
+  if (lower.endsWith('.csv')) {
+    limits.push('Fichier .csv : format texte plat à onglet unique sans formules, sans plages nommées ni cellules fusionnées.');
+  }
+  if (lower.endsWith('.xls')) {
+    limits.push('Format .xls hérité (Excel 97-2003) : certaines métadonnées modernes (tableaux structurés XML) ne sont pas disponibles.');
+  }
+  limits.push('Le fichier original sur votre ordinateur n\'est jamais modifié ni envoyé à un serveur.');
+  return limits;
 }
 
 function detectRelations(sheets) {
@@ -228,6 +308,16 @@ export function analyzeWorkbookBuffer(arrayBuffer, fileName = 'Classeur.xlsx') {
       structuredTables.push({ name: `Plage_${name}`, range: extracted.usedRange, source: 'Bloc contigu' });
     }
 
+    const fDetails = detectFormulaDetails(ws, name, sheetNames);
+    const mergedCells = detectMergedCells(ws);
+    const inconsistencies = detectSheetInconsistencies(
+      ws,
+      headerRowIdx,
+      extracted,
+      mergedCells,
+      fDetails.formulaErrors
+    );
+
     sheets.push({
       name,
       headerRow: headerRowIdx + 1,
@@ -237,17 +327,28 @@ export function analyzeWorkbookBuffer(arrayBuffer, fileName = 'Classeur.xlsx') {
       columns: extracted.columns,
       previewRows: extracted.previewRows,
       structuredTables,
-      formulaTargets: detectFormulaReferences(ws, name, sheetNames)
+      mergedCells,
+      formulaCount: fDetails.formulaCount,
+      formulaSamples: fDetails.formulaSamples,
+      formulaErrors: fDetails.formulaErrors,
+      inconsistencies,
+      formulaTargets: fDetails.refs
     });
   }
+
+  const namedRanges = (wb.Workbook?.Names || [])
+    .filter((n) => n?.Name)
+    .map((n) => ({ name: n.Name, ref: n.Ref || '' }));
 
   return {
     fileName,
     analyzedAt: new Date().toISOString(),
     hasEmbeddedMacros,
+    namedRanges,
+    formatLimitations: getFormatLimitations(fileName, hasEmbeddedMacros),
     securityNotice: hasEmbeddedMacros
-      ? 'Ce fichier contient un projet VBA (.xlsm). Par sécurité, aucune macro intégrée n\'a été exécutée lors de l\'analyse.'
-      : 'Fichier analysé localement dans votre navigateur. Aucune donnée n\'a été envoyée à un serveur externe.',
+      ? 'Ce fichier contient un projet VBA (.xlsm). Par sécurité, aucune macro intégrée n\'a été exécutée ni lue dans son binaire.'
+      : 'Fichier analysé localement dans votre navigateur. L\'original n\'est jamais écrasé et aucune donnée n\'est transmise.',
     sheets,
     relations: detectRelations(sheets),
     _rawSheets: rawSheets

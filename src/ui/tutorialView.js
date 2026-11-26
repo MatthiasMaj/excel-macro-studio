@@ -1,40 +1,32 @@
 import { escapeHtml } from '../core/security.js';
-import { setState } from '../core/store.js';
+import { getState, setState } from '../core/store.js';
 import { highlightVbaToHtml } from '../engine/vbaHighlighter.js';
 import { buildBasFileContent } from '../services/exportService.js';
-import { CURRICULUM_LEVELS, CURRICULUM_CHAPTERS } from '../services/curriculumData.js';
-import { downloadTrainingWorkbook, createTrainingWorkbookContext } from '../services/trainingWorkbook.js';
+import { CURRICULUM_CHAPTERS } from '../services/curriculumData.js';
+import { EXCEL_CURRICULUM_LEVELS, EXCEL_CURRICULUM_CHAPTERS } from '../services/excelCurriculumData.js';
+import { VBA_CURRICULUM_LEVELS, getEnrichedVbaChapters } from '../services/vbaCurriculumEnrichment.js';
+import { REMEDIATION_EXERCISES } from '../services/academyExercises.js';
+import {
+  loadAcademyProgress,
+  markChapterViewed,
+  markChapterCompleted,
+  recordExerciseAttempt,
+  recordQuizScore,
+  getTrackStats,
+  getLevelValidationStatus,
+  getCompetencyMasterySummary,
+  needsChapterRemediation,
+  getReviewRecommendations,
+  resetAcademyProgress
+} from '../services/academyProgress.js';
+import {
+  downloadTrainingWorkbook,
+  downloadExtendedNovaTechWorkbook,
+  createTrainingWorkbookContext
+} from '../services/trainingWorkbook.js';
+import { mountExerciseWidget } from './exerciseWidget.js';
 
 export const TUTORIAL_CHAPTERS = CURRICULUM_CHAPTERS;
-
-const PROGRESS_KEY = 'ems-curriculum-progress-v2';
-
-function loadCompleted() {
-  try {
-    if (typeof localStorage === 'undefined') return [];
-    const raw = localStorage.getItem(PROGRESS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveCompleted(ids) {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify(ids));
-  } catch {
-    // Stockage bloqué
-  }
-}
-
-function normalizeAnswer(val) {
-  return String(val ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '');
-}
 
 function downloadChapterBas(filRouge) {
   const content = buildBasFileContent({
@@ -58,181 +50,31 @@ function downloadChapterBas(filRouge) {
 }
 
 export function renderTutorialView(container, { navigate, onNotify }) {
-  let activeChapterId = CURRICULUM_CHAPTERS[0].id;
+  const vbaChapters = getEnrichedVbaChapters();
+  const initialTarget = getState().academyTarget;
+  let activeTrack = initialTarget?.trackId || 'excel'; // 'excel' | 'vba'
+  let activeChapterId = initialTarget?.chapterId || (activeTrack === 'excel' ? EXCEL_CURRICULUM_CHAPTERS[0].id : vbaChapters[0].id);
   let levelFilter = 'ALL';
-  let completed = new Set(loadCompleted());
+  let showDashboard = false;
 
-  // États locaux des exercices interactifs par chapitre
-  const orderStates = new Map();
-  const fillStates = new Map();
-  const bugStates = new Map();
-  const exerciseFeedback = new Map();
-  const hintLevelShown = new Map();
-  const solutionVisible = new Set();
+  if (initialTarget) {
+    setState({ academyTarget: null }, 'academyTarget');
+  }
 
-  const getOrderList = (ch) => {
-    if (!orderStates.has(ch.id)) {
-      orderStates.set(ch.id, ch.exercise.items.map((it) => ({ ...it })));
+  const exerciseStores = new Map();
+  const quizAnswers = new Map();
+  const quizResults = new Map();
+
+  const getTrackData = (trackId) => {
+    if (trackId === 'vba') {
+      return { levels: VBA_CURRICULUM_LEVELS, chapters: vbaChapters, label: 'Parcours B — Automatiser avec VBA' };
     }
-    return orderStates.get(ch.id);
-  };
-
-  const getFillMap = (ch) => {
-    if (!fillStates.has(ch.id)) {
-      fillStates.set(ch.id, {});
-    }
-    return fillStates.get(ch.id);
-  };
-
-  const renderExerciseBlock = (ch) => {
-    const ex = ch.exercise;
-    const fb = exerciseFeedback.get(ch.id);
-    const hintsCount = hintLevelShown.get(ch.id) || 0;
-    const showSol = solutionVisible.has(ch.id);
-
-    let bodyHtml = '';
-    if (ex.type === 'order') {
-      const list = getOrderList(ch);
-      bodyHtml = `
-        <ol class="stack-sm" style="list-style:none;padding:0;margin:0">
-          ${list
-            .map(
-              (item, idx) => `
-            <li class="order-item">
-              <span class="step-order-badge" aria-hidden="true">${idx + 1}</span>
-              <span style="flex:1">${escapeHtml(item.label)}</span>
-              <div class="chips-row">
-                <button type="button" class="btn-secondary btn-sm" data-ord-up="${idx}" aria-label="Monter l'étape ${idx + 1}" ${idx === 0 ? 'disabled' : ''}>↑</button>
-                <button type="button" class="btn-secondary btn-sm" data-ord-down="${idx}" aria-label="Descendre l'étape ${idx + 1}" ${idx === list.length - 1 ? 'disabled' : ''}>↓</button>
-              </div>
-            </li>
-          `
-            )
-            .join('')}
-        </ol>
-      `;
-    } else if (ex.type === 'fill') {
-      const vals = getFillMap(ch);
-      const previewCode = highlightVbaToHtml(ex.templateLines.join('\n'));
-      bodyHtml = `
-        <div class="vba-viewer">
-          <div class="vba-viewer-toolbar"><span>Code commenté à compléter</span><span>VBA</span></div>
-          <div class="vba-code-scroll" tabindex="0">${previewCode}</div>
-        </div>
-        <div class="stack-sm">
-          ${ex.blanks
-            .map(
-              (b) => `
-            <div class="blank-row">
-              <div>
-                <label for="blank_${escapeHtml(ch.id)}_${escapeHtml(b.id)}"><strong>${escapeHtml(b.label)}</strong></label>
-                ${b.help ? `<div class="field-hint">${escapeHtml(b.help)}</div>` : ''}
-              </div>
-              <input
-                type="text"
-                id="blank_${escapeHtml(ch.id)}_${escapeHtml(b.id)}"
-                data-blank-id="${escapeHtml(b.id)}"
-                value="${escapeHtml(vals[b.id] || '')}"
-                placeholder="Ex : ${escapeHtml(b.placeholder)}"
-                autocomplete="off"
-              >
-            </div>
-          `
-            )
-            .join('')}
-        </div>
-      `;
-    } else if (ex.type === 'bug') {
-      const chosen = bugStates.get(ch.id);
-      bodyHtml = `
-        <div class="vba-viewer">
-          <div class="vba-viewer-toolbar"><span>Code contenant une erreur</span><span>À corriger</span></div>
-          <div class="vba-code-scroll" tabindex="0">${highlightVbaToHtml(ex.buggyCode)}</div>
-        </div>
-        <fieldset class="quiz-box">
-          <legend>Identifiez l'erreur et sa correction</legend>
-          <div class="stack-sm">
-            ${ex.options
-              .map(
-                (opt, idx) => `
-              <label class="quiz-option">
-                <input type="radio" name="bug_${escapeHtml(ch.id)}" value="${idx}" ${chosen === idx ? 'checked' : ''}>
-                <span>${escapeHtml(opt)}</span>
-              </label>
-            `
-              )
-              .join('')}
-          </div>
-        </fieldset>
-      `;
-    }
-
-    const hintsHtml =
-      hintsCount > 0
-        ? `<div class="hint-box stack-sm">
-             ${ex.hints
-               .slice(0, hintsCount)
-               .map((h, i) => `<p style="margin:0"><strong>Indice ${i + 1} :</strong> ${escapeHtml(h)}</p>`)
-               .join('')}
-           </div>`
-        : '';
-
-    const fbHtml = fb
-      ? `<div class="alert-banner ${fb.ok ? 'alert-success' : 'alert-warning'}" role="status">
-           <strong>${fb.ok ? 'Bravo, exercice réussi !' : 'À ajuster :'}</strong>
-           <span>${escapeHtml(fb.message)}</span>
-         </div>`
-      : '';
-
-    return `
-      <section class="exercise-box stack-md" aria-labelledby="ex-heading-${escapeHtml(ch.id)}">
-        <div>
-          <h3 id="ex-heading-${escapeHtml(ch.id)}" style="margin-bottom:0.25rem">3. Pratiquer ici — Exercice interactif</h3>
-          <p style="margin:0">${escapeHtml(ex.instruction)}</p>
-        </div>
-
-        ${
-          ex.guidance
-            ? `<div class="alert-banner alert-info">
-                 <strong>Comment réfléchir pour réussir :</strong>
-                 <span>${escapeHtml(ex.guidance)}</span>
-               </div>`
-            : ''
-        }
-
-        ${bodyHtml}
-
-        <div class="chips-row">
-          <button type="button" class="btn-primary btn-sm" id="ex-verify-btn">Vérifier ma réponse</button>
-          ${
-            hintsCount < ex.hints.length
-              ? `<button type="button" class="btn-secondary btn-sm" id="ex-hint-btn">Afficher un indice (${hintsCount}/${ex.hints.length})</button>`
-              : ''
-          }
-          <button type="button" class="btn-ghost btn-sm" id="ex-solution-btn" aria-expanded="${showSol}">
-            ${showSol ? 'Masquer le corrigé' : 'Voir le corrigé'}
-          </button>
-        </div>
-
-        ${hintsHtml}
-        ${fbHtml}
-        ${
-          showSol
-            ? `<div class="vba-viewer">
-                 <div class="vba-viewer-toolbar"><span>Corrigé commenté</span><span>Solution</span></div>
-                 <div class="vba-code-scroll" tabindex="0">${highlightVbaToHtml(ex.solutionCode)}</div>
-               </div>`
-            : ''
-        }
-      </section>
-    `;
+    return { levels: EXCEL_CURRICULUM_LEVELS, chapters: EXCEL_CURRICULUM_CHAPTERS, label: 'Parcours A — Maîtriser Excel' };
   };
 
   const paint = () => {
-    const visibleChapters =
-      levelFilter === 'ALL'
-        ? CURRICULUM_CHAPTERS
-        : CURRICULUM_CHAPTERS.filter((c) => c.levelId === levelFilter);
+    const { levels, chapters } = getTrackData(activeTrack);
+    const visibleChapters = levelFilter === 'ALL' ? chapters : chapters.filter((c) => c.levelId === levelFilter);
 
     if (!visibleChapters.some((c) => c.id === activeChapterId) && visibleChapters[0]) {
       activeChapterId = visibleChapters[0].id;
@@ -240,98 +82,242 @@ export function renderTutorialView(container, { navigate, onNotify }) {
 
     const activeIdx = Math.max(0, visibleChapters.findIndex((c) => c.id === activeChapterId));
     const ch = visibleChapters[activeIdx];
-    const doneCount = CURRICULUM_CHAPTERS.filter((c) => completed.has(c.id)).length;
-    const isDone = completed.has(ch.id);
+    markChapterViewed(activeTrack, ch.id);
+
+    const updatedProgress = loadAcademyProgress();
+    const excelStats = getTrackStats(EXCEL_CURRICULUM_CHAPTERS, updatedProgress);
+    const vbaStats = getTrackStats(vbaChapters, updatedProgress);
+    const activeStats = activeTrack === 'excel' ? excelStats : vbaStats;
+    const levelStatuses = getLevelValidationStatus(levels, chapters, updatedProgress);
+    const allChapters = [...EXCEL_CURRICULUM_CHAPTERS, ...vbaChapters];
+    const recommendations = getReviewRecommendations(allChapters, updatedProgress);
+    const masteryList = getCompetencyMasterySummary(updatedProgress);
+
+    const isDone = Boolean(updatedProgress.completed?.[ch.id]);
+    const showRemediation = needsChapterRemediation(ch.id, updatedProgress);
+    const remediationExercise = REMEDIATION_EXERCISES[ch.levelId] || null;
     const prevCh = activeIdx > 0 ? visibleChapters[activeIdx - 1] : null;
     const nextCh = activeIdx < visibleChapters.length - 1 ? visibleChapters[activeIdx + 1] : null;
 
-    // Sommaire groupé par niveau
-    const tocGroupsHtml = CURRICULUM_LEVELS.map((lvl) => {
-      const chs = visibleChapters.filter((c) => c.levelId === lvl.id);
-      if (chs.length === 0) return '';
-      const lvlDone = chs.filter((c) => completed.has(c.id)).length;
-      return `
-        <div class="stack-sm">
-          <div class="level-group-title">
-            <span>${escapeHtml(lvl.name)}</span>
-            <span class="badge badge-neutral">${lvlDone}/${chs.length}</span>
+    // Sommaire latéral groupé par niveau
+    const tocGroupsHtml = levels
+      .map((lvl) => {
+        const chs = visibleChapters.filter((c) => c.levelId === lvl.id);
+        if (chs.length === 0) return '';
+        const lvlDone = chs.filter((c) => Boolean(updatedProgress.completed?.[c.id])).length;
+        return `
+          <div class="stack-sm">
+            <div class="level-group-title">
+              <span>${escapeHtml(lvl.name)}</span>
+              <span class="badge ${lvlDone === chs.length ? 'badge-success' : 'badge-neutral'}">${lvlDone}/${chs.length}</span>
+            </div>
+            <ol class="tutorial-toc">
+              ${chs
+                .map((item) => {
+                  const isCurrent = item.id === ch.id;
+                  const itemDone = Boolean(updatedProgress.completed?.[item.id]);
+                  const needsRev = needsChapterRemediation(item.id, updatedProgress);
+                  return `
+                    <li>
+                      <button
+                        type="button"
+                        class="tutorial-toc-btn"
+                        data-jump-ch="${escapeHtml(item.id)}"
+                        ${isCurrent ? 'aria-current="step"' : ''}
+                      >
+                        <span class="step-order-badge" aria-hidden="true">${itemDone ? '✓' : item.number}</span>
+                        <span style="flex:1;min-width:0;text-align:left">
+                          <span style="display:block;font-weight:600">${escapeHtml(item.title)}</span>
+                          <span class="field-hint">${escapeHtml(item.duration)}${needsRev ? ' · À réviser' : ''}</span>
+                        </span>
+                      </button>
+                    </li>
+                  `;
+                })
+                .join('')}
+            </ol>
           </div>
-          <ol class="tutorial-toc">
-            ${chs
-              .map((item) => {
-                const isCurrent = item.id === ch.id;
-                const itemDone = completed.has(item.id);
-                return `
-                  <li>
-                    <button
-                      type="button"
-                      class="tutorial-toc-btn"
-                      data-jump-ch="${escapeHtml(item.id)}"
-                      ${isCurrent ? 'aria-current="step"' : ''}
-                    >
-                      <span class="step-order-badge" aria-hidden="true">${itemDone ? '✓' : item.number}</span>
-                      <span style="flex:1;min-width:0;text-align:left">
-                        <span style="display:block;font-weight:600">${escapeHtml(item.title)}</span>
-                        <span class="field-hint">${escapeHtml(item.duration)}</span>
-                      </span>
-                    </button>
-                  </li>
-                `;
-              })
-              .join('')}
-          </ol>
-        </div>
-      `;
-    }).join('');
-
-    const memoRows = ch.memo
-      .map((m) => `<tr><td><code>${escapeHtml(m.keyword)}</code></td><td>${escapeHtml(m.role)}</td></tr>`)
+        `;
+      })
       .join('');
+
+    const cellGridHtml = ch.theory?.cellGrid
+      ? `<div class="stack-sm">
+           <span class="field-hint"><strong>${escapeHtml(ch.theory.cellGrid.title)}</strong></span>
+           <div class="data-table-wrap">
+             <table class="data-table excel-grid-table">
+               <thead><tr>${ch.theory.cellGrid.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+               <tbody>
+                 ${ch.theory.cellGrid.rows
+                   .map((r) => `<tr>${r.map((cell, ci) => (ci === 0 ? `<th class="row-num">${escapeHtml(cell)}</th>` : `<td>${escapeHtml(cell)}</td>`)).join('')}</tr>`)
+                   .join('')}
+               </tbody>
+             </table>
+           </div>
+         </div>`
+      : '';
+
+    const formulaTableHtml = ch.theory?.formulaTable?.length
+      ? `<div class="data-table-wrap">
+           <table class="data-table">
+             <thead><tr><th>Syntaxe / Formule</th><th>Rôle</th></tr></thead>
+             <tbody>
+               ${ch.theory.formulaTable
+                 .map((f) => `<tr><td><code>${escapeHtml(f.expr)}</code></td><td>${escapeHtml(f.role)}</td></tr>`)
+                 .join('')}
+             </tbody>
+           </table>
+         </div>`
+      : '';
+
+    const vocabRows = (ch.vocabulary || [])
+      .map((v) => `<tr><td><strong>${escapeHtml(v.term)}</strong></td><td>${escapeHtml(v.definition)}</td></tr>`)
+      .join('');
+
+    const quizList = ch.validationQuiz || [];
+    const currentQuizSel = quizAnswers.get(ch.id) || {};
+    const quizResult = quizResults.get(ch.id);
+
+    const compat = ch.furtherReading?.compatibility || {};
+    const compMod = ch.furtherReading?.complementaryModule;
+
+    const dashboardHtml = showDashboard
+      ? `
+        <section class="panel stack-md" aria-label="Tableau de bord personnel de l'Académie">
+          <div class="panel-header" style="margin-bottom:0">
+            <div>
+              <h2 class="panel-title">Tableau de bord pédagogique &amp; Maîtrise</h2>
+              <p class="field-hint">Sauvegarde locale automatique. Aucun chapitre n'est bloqué arbitrairement.</p>
+            </div>
+            <div class="chips-row">
+              ${updatedProgress.lastVisited ? `<button type="button" class="btn-secondary btn-sm" id="ac-resume-btn">Reprendre la dernière leçon</button>` : ''}
+              <button type="button" class="btn-ghost btn-sm" id="cur-reset-btn">Réinitialiser ma progression</button>
+            </div>
+          </div>
+
+          <div class="before-after-grid">
+            <div class="stat-card">
+              <div class="level-group-title"><span>Parcours A : Maîtriser Excel</span><span>${excelStats.completedCount}/${excelStats.total} ch.</span></div>
+              <progress class="tutorial-progress" value="${excelStats.completedCount}" max="${excelStats.total}" style="margin:0.4rem 0"></progress>
+              <span class="field-hint">${excelStats.percent} % validé · ${excelStats.exercisesPassed} exercice(s) réussi(s)</span>
+            </div>
+            <div class="stat-card">
+              <div class="level-group-title"><span>Parcours B : Automatiser avec VBA</span><span>${vbaStats.completedCount}/${vbaStats.total} ch.</span></div>
+              <progress class="tutorial-progress" value="${vbaStats.completedCount}" max="${vbaStats.total}" style="margin:0.4rem 0"></progress>
+              <span class="field-hint">${vbaStats.percent} % validé · ${vbaStats.exercisesPassed} exercice(s) réussi(s)</span>
+            </div>
+          </div>
+
+          <div>
+            <h3>Validation des niveaux (${activeTrack === 'excel' ? 'Parcours A' : 'Parcours B'})</h3>
+            <div class="chips-row">
+              ${levelStatuses
+                .map(
+                  (ls) => `<span class="badge ${ls.validated ? 'badge-success' : 'badge-neutral'}">${escapeHtml(ls.name)} : ${ls.done}/${ls.total}${ls.validated ? ' ✓ Niveau validé' : ''}</span>`
+                )
+                .join('')}
+            </div>
+          </div>
+
+          ${
+            masteryList.length > 0
+              ? `<div>
+                   <h3>Maîtrise par compétence</h3>
+                   <div class="chips-row">
+                     ${masteryList
+                       .map(
+                         (m) => `<span class="badge ${m.level === 'Maîtrisée' ? 'badge-success' : m.level === 'À retravailler' ? 'badge-warning' : 'badge-info'}">${escapeHtml(m.competency)} (${m.ratio}% · ${escapeHtml(m.level)})</span>`
+                       )
+                       .join('')}
+                   </div>
+                 </div>`
+              : ''
+          }
+
+          <div>
+            <h3>Recommandations de révision adaptative</h3>
+            ${
+              recommendations.length > 0
+                ? `<ul class="stack-sm" style="margin:0;padding-left:1.2rem">
+                     ${recommendations
+                       .map(
+                         (r) => `<li>
+                                   <strong>${escapeHtml(r.title)}</strong> (${escapeHtml(r.levelName)}) — ${escapeHtml(r.reason)}
+                                   <button type="button" class="btn-link btn-sm" data-rec-track="${escapeHtml(r.trackId)}" data-rec-ch="${escapeHtml(r.chapterId)}">Réviser ce chapitre</button>
+                                 </li>`
+                       )
+                       .join('')}
+                   </ul>`
+                : '<p class="field-hint">Aucune lacune détectée pour le moment. Continuez à votre rythme !</p>'
+            }
+          </div>
+        </section>
+      `
+      : '';
 
     container.innerHTML = `
       <div class="stack-md">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Cursus complet — De Zéro à Professionnel Excel &amp; VBA</h1>
-            <p class="page-subtitle">4 niveaux · 12 chapitres progressifs avec exercices pratiques et classeur d'entreprise Fil Rouge.</p>
+            <h1 class="page-title">Académie Excel &amp; VBA — NovaTech</h1>
+            <p class="page-subtitle">Apprenez d'abord à maîtriser Excel sans code (Parcours A), puis passez à l'automatisation VBA professionnelle (Parcours B).</p>
           </div>
-          ${doneCount > 0 ? '<button type="button" class="btn-ghost btn-sm" id="cur-reset-btn">Réinitialiser ma progression</button>' : ''}
+          <div class="chips-row">
+            <button type="button" class="btn-secondary btn-sm" id="ac-toggle-dash-btn" aria-expanded="${showDashboard}">
+              ${showDashboard ? 'Masquer mon tableau de bord' : `Mon tableau de bord (${excelStats.completedCount + vbaStats.completedCount}/${allChapters.length})`}
+            </button>
+          </div>
         </div>
 
-        <!-- Bandeau Fil Rouge -->
-        <section class="panel stack-sm" aria-label="Classeur d'entraînement Fil Rouge">
+        ${dashboardHtml}
+
+        <!-- Sélecteur des 2 grands parcours -->
+        <div class="tabs-bar" role="tablist" aria-label="Parcours de l'Académie">
+          <button type="button" class="tab-btn" role="tab" data-track="excel" aria-selected="${activeTrack === 'excel'}">
+            Parcours A : Maîtriser Excel (${excelStats.completedCount}/15)
+          </button>
+          <button type="button" class="tab-btn" role="tab" data-track="vba" aria-selected="${activeTrack === 'vba'}">
+            Parcours B : Automatiser avec VBA (${vbaStats.completedCount}/12)
+          </button>
+        </div>
+
+        <!-- Bandeau Projet Fil Rouge NovaTech -->
+        <section class="panel stack-sm" aria-label="Projet pédagogique fil rouge NovaTech">
           <div class="panel-header" style="margin-bottom:0">
             <div>
-              <strong>Fil Rouge : Entreprise_NovaTech_FilRouge.xlsx</strong>
-              <p class="field-hint">Classeur réaliste à 4 onglets (<code>Ventes_Brutes</code>, <code>Clients</code>, <code>Stocks</code>, <code>Parametres</code>) qui évolue avec vous du Chapitre 1 au Chapitre 12.</p>
+              <strong>Projet Fil Rouge : Entreprise NovaTech</strong>
+              <p class="field-hint">Classeur de départ (4 onglets : <code>Ventes_Brutes</code>, <code>Clients</code>, <code>Stocks</code>, <code>Parametres</code>) et classeur complet étendu (7 onglets dont <code>Fournisseurs</code>, <code>Interventions</code>, <code>Synthese_Marges</code>).</p>
             </div>
             <div class="chips-row">
-              <button type="button" class="btn-primary btn-sm" id="cur-dl-workbook-btn">Télécharger le classeur Fil Rouge (.xlsx)</button>
-              <button type="button" class="btn-secondary btn-sm" id="cur-analyze-workbook-btn">Charger dans l'Analyseur</button>
+              <button type="button" class="btn-primary btn-sm" id="cur-dl-workbook-btn">Classeur départ (.xlsx)</button>
+              <button type="button" class="btn-secondary btn-sm" id="cur-dl-ext-workbook-btn">Classeur complet 7 onglets (.xlsx)</button>
+              <button type="button" class="btn-ghost btn-sm" id="cur-analyze-workbook-btn">Charger dans l'Analyseur</button>
             </div>
           </div>
         </section>
 
-        <!-- Progression & Filtres -->
+        <!-- Barre de progression du parcours actif + filtres niveaux -->
         <div class="panel tutorial-progress-wrap">
           <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.75rem">
             <div>
-              <strong>Avancée globale : ${doneCount} / ${CURRICULUM_CHAPTERS.length} chapitres validés</strong>
-              <span class="field-hint" style="margin-left:0.5rem">(${Math.round((doneCount / CURRICULUM_CHAPTERS.length) * 100)} %)</span>
+              <strong>${activeTrack === 'excel' ? 'Parcours A (Excel)' : 'Parcours B (VBA)'} : ${activeStats.completedCount} / ${activeStats.total} chapitres validés</strong>
+              <span class="field-hint" style="margin-left:0.5rem">(${activeStats.percent} %)</span>
             </div>
             <div class="chips-row" role="group" aria-label="Filtrer par niveau">
-              <button type="button" class="chip-btn ${levelFilter === 'ALL' ? 'active' : ''}" data-lvl="ALL">Tous (12)</button>
-              ${CURRICULUM_LEVELS.map(
-                (l) => `<button type="button" class="chip-btn ${levelFilter === l.id ? 'active' : ''}" data-lvl="${escapeHtml(l.id)}">Niv. ${l.number}</button>`
-              ).join('')}
+              <button type="button" class="chip-btn ${levelFilter === 'ALL' ? 'active' : ''}" data-lvl="ALL">Tous (${chapters.length})</button>
+              ${levels
+                .map(
+                  (l) => `<button type="button" class="chip-btn ${levelFilter === l.id ? 'active' : ''}" data-lvl="${escapeHtml(l.id)}">Niv. ${l.number}</button>`
+                )
+                .join('')}
             </div>
           </div>
-          <progress class="tutorial-progress" value="${doneCount}" max="${CURRICULUM_CHAPTERS.length}" aria-label="Progression dans le cursus"></progress>
+          <progress class="tutorial-progress" value="${activeStats.completedCount}" max="${activeStats.total}" aria-label="Progression dans le parcours"></progress>
         </div>
 
         <div class="tutorial-layout">
           <aside class="panel tutorial-toc-panel">
-            <nav aria-label="Sommaire du cursus" class="stack-md">
+            <nav aria-label="Programme du parcours" class="stack-md">
               <h2 class="panel-title">Programme</h2>
               ${tocGroupsHtml}
             </nav>
@@ -341,9 +327,10 @@ export function renderTutorialView(container, { navigate, onNotify }) {
             <div class="panel-header">
               <div>
                 <div class="chips-row" style="margin-bottom:0.4rem">
-                  <span class="badge badge-info">Chapitre ${ch.number} / ${CURRICULUM_CHAPTERS.length}</span>
+                  <span class="badge badge-info">Chapitre ${ch.number} / ${chapters.length}</span>
                   <span class="badge badge-neutral">${escapeHtml(ch.levelName)}</span>
                   <span class="badge badge-neutral">${escapeHtml(ch.duration)}</span>
+                  <span class="badge badge-neutral">${escapeHtml(ch.competency)}</span>
                   ${isDone ? '<span class="badge badge-success">Validé</span>' : ''}
                 </div>
                 <h2 id="cur-ch-title" class="panel-title" style="font-size:1.3rem" tabindex="-1">${escapeHtml(ch.title)}</h2>
@@ -355,71 +342,195 @@ export function renderTutorialView(container, { navigate, onNotify }) {
 
             <p class="page-subtitle">${escapeHtml(ch.summary)}</p>
 
-            <!-- 1. Comprendre -->
+            <!-- 1. Objectif pédagogique · 2. Mise en situation · 3. Prérequis -->
             <section class="stack-sm">
-              <h3>1. Comprendre</h3>
+              <div class="before-after-grid">
+                <div class="alert-banner alert-info">
+                  <strong>1. Objectif pédagogique</strong>
+                  <span>${escapeHtml(ch.objective)}</span>
+                </div>
+                <div class="alert-banner alert-success">
+                  <strong>2. Mise en situation NovaTech</strong>
+                  <span>${escapeHtml(ch.scenario)}</span>
+                </div>
+              </div>
+              <div class="panel" style="padding:0.75rem 1rem;background:var(--surface-subtle)">
+                <strong>3. Prérequis :</strong>
+                <span>${escapeHtml((ch.prerequisites || []).join(' · '))}</span>
+              </div>
+            </section>
+
+            <!-- 4. Explication théorique -->
+            <section class="stack-sm">
+              <h3>4. Explication théorique</h3>
               <div class="before-after-grid">
                 <div class="alert-banner alert-warning">
-                  <strong>Avant</strong>
-                  <span>${escapeHtml(ch.beforeAfter.before)}</span>
+                  <strong>Avant ce chapitre</strong>
+                  <span>${escapeHtml(ch.theory.beforeAfter.before)}</span>
                 </div>
                 <div class="alert-banner alert-success">
                   <strong>Après ce chapitre</strong>
-                  <span>${escapeHtml(ch.beforeAfter.after)}</span>
+                  <span>${escapeHtml(ch.theory.beforeAfter.after)}</span>
                 </div>
               </div>
-              ${ch.explanation.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}
+              ${ch.theory.paragraphs.map((p) => `<p style="margin:0.25rem 0">${escapeHtml(p)}</p>`).join('')}
+              ${cellGridHtml}
+              ${formulaTableHtml}
+            </section>
+
+            <!-- 5. Vocabulaire -->
+            <section class="stack-sm">
+              <h3>5. Vocabulaire clé</h3>
               <div class="data-table-wrap">
                 <table class="data-table">
-                  <thead><tr><th>Mot-clé / Commande</th><th>Explication simple</th></tr></thead>
-                  <tbody>${memoRows}</tbody>
+                  <thead><tr><th>Terme / Commande</th><th>Définition simple</th></tr></thead>
+                  <tbody>${vocabRows}</tbody>
                 </table>
               </div>
             </section>
 
-            <!-- 2. Observer -->
+            <!-- 6. Démonstration commentée -->
             <section class="stack-sm">
-              <h3>2. Observer — Extrait VBA commenté</h3>
+              <h3>6. Démonstration — ${escapeHtml(ch.demonstration.title)}</h3>
+              <ol class="tutorial-step-list">
+                ${ch.demonstration.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}
+              </ol>
               <div class="vba-viewer">
                 <div class="vba-viewer-toolbar">
-                  <span>Exemple — Chapitre ${ch.number}</span>
-                  <span>VBA commenté</span>
+                  <span>Démonstration commentée</span>
+                  <span>${ch.demonstration.language === 'vba' ? 'VBA' : 'Excel'}</span>
                 </div>
-                <div class="vba-code-scroll" tabindex="0">${highlightVbaToHtml(ch.codeExample)}</div>
+                <div class="vba-code-scroll" tabindex="0">${highlightVbaToHtml(ch.demonstration.formulaOrCode)}</div>
               </div>
             </section>
 
-            <!-- 3. Pratiquer ici -->
-            ${renderExerciseBlock(ch)}
+            <!-- 7. Exercice guidé -->
+            <div id="ac-guided-mount"></div>
 
-            <!-- 4. Appliquer dans Excel (Fil Rouge) -->
+            <!-- 8. Exercice autonome -->
+            <div id="ac-auto-mount"></div>
+
+            <!-- Remédiation adaptative si difficultés détectées -->
+            ${
+              showRemediation && remediationExercise
+                ? `<div class="alert-banner alert-warning">
+                     <strong>Renforcement adaptatif proposé</strong>
+                     <span>Vous avez rencontré quelques hésitations sur cette notion : voici un exercice supplémentaire ciblé pour consolider vos bases (facultatif, rien n'est bloqué).</span>
+                   </div>
+                   <div id="ac-remediation-mount"></div>`
+                : ''
+            }
+
+            <!-- 9. Application pratique NovaTech -->
             <section class="panel stack-sm" style="background:var(--surface-subtle)">
-              <h3>4. Appliquer dans Excel — Défi Fil Rouge : ${escapeHtml(ch.filRouge.title)}</h3>
+              <h3>9. Application pratique Fil Rouge — ${escapeHtml(ch.practicalApp.title)}</h3>
               <ol class="tutorial-step-list">
-                ${ch.filRouge.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}
+                ${ch.practicalApp.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}
               </ol>
-              <div class="chips-row">
-                <button type="button" class="btn-primary btn-sm" id="cur-dl-bas-btn">Télécharger la solution (.bas)</button>
-                <button type="button" class="btn-secondary btn-sm" id="cur-open-gen-btn">Ouvrir l'équivalent dans le Générateur</button>
-              </div>
-              <details class="advanced-panel">
-                <summary>Voir le code VBA commenté du défi Fil Rouge (${escapeHtml(ch.filRouge.basModuleName)}.bas)</summary>
-                <div class="vba-viewer">
-                  <div class="vba-viewer-toolbar">
-                    <span>${escapeHtml(ch.filRouge.basModuleName)}.bas</span>
-                    <span>Code commenté ligne par ligne</span>
+              ${
+                ch.practicalApp.basCode
+                  ? `<div class="chips-row">
+                       <button type="button" class="btn-primary btn-sm" id="cur-dl-bas-btn">Télécharger la solution (.bas)</button>
+                       <button type="button" class="btn-secondary btn-sm" id="cur-open-gen-btn">Ouvrir l'équivalent dans le Générateur</button>
+                     </div>
+                     <details class="advanced-panel">
+                       <summary>Voir le code VBA commenté du défi Fil Rouge (${escapeHtml(ch.practicalApp.basModuleName)}.bas)</summary>
+                       <div class="vba-viewer">
+                         <div class="vba-viewer-toolbar">
+                           <span>${escapeHtml(ch.practicalApp.basModuleName)}.bas</span>
+                           <span>Code commenté ligne par ligne</span>
+                         </div>
+                         <div class="vba-code-scroll" tabindex="0">${highlightVbaToHtml(ch.practicalApp.basCode)}</div>
+                       </div>
+                     </details>`
+                  : ''
+              }
+            </section>
+
+            <!-- 10. Validation des acquis -->
+            <section class="panel stack-sm" aria-label="Validation des acquis">
+              <h3>10. Validation des acquis (Test rapide)</h3>
+              ${quizList
+                .map(
+                  (q, qIdx) => `
+                <fieldset class="quiz-box">
+                  <legend>Question ${qIdx + 1} : ${escapeHtml(q.question)}</legend>
+                  <div class="stack-sm">
+                    ${q.options
+                      .map(
+                        (opt, oIdx) => `
+                      <label class="quiz-option">
+                        <input type="radio" name="vq_${escapeHtml(ch.id)}_${qIdx}" value="${oIdx}" ${currentQuizSel[qIdx] === oIdx ? 'checked' : ''}>
+                        <span>${escapeHtml(opt)}</span>
+                      </label>
+                    `
+                      )
+                      .join('')}
                   </div>
-                  <div class="vba-code-scroll" tabindex="0">${highlightVbaToHtml(ch.filRouge.basCode)}</div>
-                </div>
-              </details>
+                </fieldset>
+              `
+                )
+                .join('')}
+              <div class="chips-row">
+                <button type="button" class="btn-primary btn-sm" id="ac-quiz-verify-btn">Valider le test de compréhension</button>
+              </div>
+              ${
+                quizResult
+                  ? `<div class="alert-banner ${quizResult.passed ? 'alert-success' : 'alert-warning'}" role="status">
+                       <strong>Score : ${quizResult.score} / ${quizResult.total}</strong>
+                       <span>${quizResult.passed ? 'Acquis validés ! Ce chapitre est marqué comme terminé.' : 'Certaines réponses sont à revoir avant de passer à la suite.'}</span>
+                     </div>`
+                  : ''
+              }
+            </section>
+
+            <!-- 11. Résumé (fiche de révision) -->
+            <section class="panel stack-sm" style="background:var(--accent-soft)">
+              <h3>11. Résumé — Fiche de révision</h3>
+              <ul style="margin:0;padding-left:1.25rem">
+                ${(ch.summary || []).map((pt) => `<li>${escapeHtml(pt)}</li>`).join('')}
+              </ul>
+            </section>
+
+            <!-- 12. Pour aller plus loin & Compatibilité Excel -->
+            <section class="panel stack-sm">
+              <h3>12. Pour aller plus loin &amp; Compatibilité Excel</h3>
+              <ul style="margin:0;padding-left:1.25rem">
+                ${(ch.furtherReading?.topics || []).map((t) => `<li>${escapeHtml(t)}</li>`).join('')}
+              </ul>
+              ${
+                compMod
+                  ? `<details class="advanced-panel">
+                       <summary>${escapeHtml(compMod.title)}</summary>
+                       <div class="stack-sm">
+                         <p style="margin:0">${escapeHtml(compMod.explanation)}</p>
+                         <div class="vba-viewer">
+                           <div class="vba-viewer-toolbar"><span>Approfondissement VBA</span><span>Code commenté</span></div>
+                           <div class="vba-code-scroll" tabindex="0">${highlightVbaToHtml(compMod.codeExample)}</div>
+                         </div>
+                       </div>
+                     </details>`
+                  : ''
+              }
+              <div class="data-table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Plateforme Excel</th><th>Compatibilité et limitations</th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>Excel Windows</strong></td><td>${escapeHtml(compat.windows || '')}</td></tr>
+                    <tr><td><strong>Excel Mac</strong></td><td>${escapeHtml(compat.mac || '')}</td></tr>
+                    <tr><td><strong>Microsoft 365</strong></td><td>${escapeHtml(compat.m365 || '')}</td></tr>
+                    <tr><td><strong>Excel Web</strong></td><td>${escapeHtml(compat.web || '')}</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </section>
 
             <nav class="tutorial-pager" aria-label="Navigation entre chapitres">
               <button type="button" class="btn-ghost btn-sm" ${prevCh ? `data-jump-ch="${escapeHtml(prevCh.id)}"` : 'disabled'}>
-                ← ${prevCh ? escapeHtml(prevCh.title) : 'Début'}
+                ← ${prevCh ? escapeHtml(prevCh.title) : 'Début du parcours'}
               </button>
               <button type="button" class="btn-primary btn-sm" ${nextCh ? `data-jump-ch="${escapeHtml(nextCh.id)}"` : 'disabled'}>
-                ${nextCh ? `Chapitre suivant : ${escapeHtml(nextCh.title)} →` : 'Cursus terminé !'}
+                ${nextCh ? `Chapitre suivant : ${escapeHtml(nextCh.title)} →` : activeTrack === 'excel' ? 'Parcours A terminé ! Passez au Parcours B' : 'Parcours B terminé !'}
               </button>
             </nav>
           </article>
@@ -427,24 +538,105 @@ export function renderTutorialView(container, { navigate, onNotify }) {
       </div>
     `;
 
-    // Événements globaux du cursus
+    // Monter les exercices interactifs (Guidé, Autonome, et Remédiation éventuelle)
+    if (ch.guidedExercise) {
+      mountExerciseWidget(container.querySelector('#ac-guided-mount'), {
+        exercise: ch.guidedExercise,
+        heading: '7. Exercice guidé (avec méthode)',
+        showGuidance: true,
+        stateStore: exerciseStores,
+        onAttempt: (ok) => {
+          recordExerciseAttempt(ch.id, 'guided', ok, ch.competency);
+          if (ok) onNotify?.('Exercice guidé réussi !', 'success');
+        }
+      });
+    }
+
+    if (ch.autonomousExercise) {
+      mountExerciseWidget(container.querySelector('#ac-auto-mount'), {
+        exercise: ch.autonomousExercise,
+        heading: '8. Exercice autonome (sans assistance directe)',
+        showGuidance: false,
+        stateStore: exerciseStores,
+        onAttempt: (ok) => {
+          recordExerciseAttempt(ch.id, 'autonomous', ok, ch.competency);
+          if (ok) onNotify?.('Exercice autonome réussi !', 'success');
+        }
+      });
+    }
+
+    if (showRemediation && remediationExercise) {
+      mountExerciseWidget(container.querySelector('#ac-remediation-mount'), {
+        exercise: { ...remediationExercise, id: `${remediationExercise.id}_${ch.id}` },
+        heading: 'Exercice complémentaire de consolidation',
+        showGuidance: true,
+        stateStore: exerciseStores,
+        onAttempt: (ok) => {
+          recordExerciseAttempt(ch.id, 'remediation', ok, ch.competency);
+          if (ok) {
+            onNotify?.('Consolidation réussie !', 'success');
+            paint();
+          }
+        }
+      });
+    }
+
+    // Bind événements globaux Académie
+    container.querySelector('#ac-toggle-dash-btn')?.addEventListener('click', () => {
+      showDashboard = !showDashboard;
+      paint();
+    });
+
+    container.querySelector('#ac-resume-btn')?.addEventListener('click', () => {
+      const last = updatedProgress.lastVisited;
+      if (last) {
+        activeTrack = last.trackId || 'excel';
+        activeChapterId = last.chapterId;
+        levelFilter = 'ALL';
+        paint();
+      }
+    });
+
+    container.querySelectorAll('[data-rec-ch]').forEach((b) => {
+      b.addEventListener('click', () => {
+        activeTrack = b.dataset.recTrack || 'excel';
+        activeChapterId = b.dataset.recCh;
+        levelFilter = 'ALL';
+        paint();
+      });
+    });
+
+    container.querySelectorAll('[data-track]').forEach((b) => {
+      b.addEventListener('click', () => {
+        activeTrack = b.dataset.track;
+        levelFilter = 'ALL';
+        const first = getTrackData(activeTrack).chapters[0];
+        activeChapterId = first.id;
+        paint();
+      });
+    });
+
     container.querySelector('#cur-dl-workbook-btn')?.addEventListener('click', () => {
       const f = downloadTrainingWorkbook();
-      onNotify?.(`Classeur d'entraînement ${f} téléchargé.`, 'success');
+      onNotify?.(`Classeur de départ ${f} téléchargé.`, 'success');
+    });
+
+    container.querySelector('#cur-dl-ext-workbook-btn')?.addEventListener('click', () => {
+      const f = downloadExtendedNovaTechWorkbook();
+      onNotify?.(`Classeur complet ${f} (7 onglets) téléchargé.`, 'success');
     });
 
     container.querySelector('#cur-analyze-workbook-btn')?.addEventListener('click', () => {
       const ctx = createTrainingWorkbookContext();
       setState({ workbookContext: ctx }, 'workbookContext');
-      onNotify?.('Classeur Fil Rouge chargé dans l\'Analyseur Excel !', 'success');
+      onNotify?.('Classeur NovaTech chargé dans l\'Analyseur Excel !', 'success');
       navigate('analyzer');
     });
 
     container.querySelector('#cur-reset-btn')?.addEventListener('click', () => {
-      completed.clear();
-      saveCompleted([]);
-      exerciseFeedback.clear();
-      onNotify?.('Progression réinitialisée.', 'info');
+      resetAcademyProgress();
+      quizResults.clear();
+      onNotify?.('Progression de l\'Académie réinitialisée.', 'info');
       paint();
     });
 
@@ -464,108 +656,52 @@ export function renderTutorialView(container, { navigate, onNotify }) {
     });
 
     container.querySelector('#cur-toggle-done-btn')?.addEventListener('click', () => {
-      if (completed.has(ch.id)) completed.delete(ch.id);
-      else completed.add(ch.id);
-      saveCompleted([...completed]);
+      markChapterCompleted(activeTrack, ch.id, !isDone);
       paint();
     });
 
-    // Événements exercices
-    container.querySelectorAll('[data-ord-up]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const i = Number(btn.dataset.ordUp);
-        const list = getOrderList(ch);
-        if (i > 0) {
-          [list[i - 1], list[i]] = [list[i], list[i - 1]];
-          paint();
-        }
+    // Quiz de validation des acquis
+    quizList.forEach((_, qIdx) => {
+      container.querySelectorAll(`input[name="vq_${CSS.escape(ch.id)}_${qIdx}"]`).forEach((rad) => {
+        rad.addEventListener('change', (e) => {
+          const prev = quizAnswers.get(ch.id) || {};
+          prev[qIdx] = Number(e.target.value);
+          quizAnswers.set(ch.id, prev);
+        });
       });
     });
 
-    container.querySelectorAll('[data-ord-down]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const i = Number(btn.dataset.ordDown);
-        const list = getOrderList(ch);
-        if (i < list.length - 1) {
-          [list[i + 1], list[i]] = [list[i], list[i + 1]];
-          paint();
-        }
+    container.querySelector('#ac-quiz-verify-btn')?.addEventListener('click', () => {
+      const sel = quizAnswers.get(ch.id) || {};
+      let score = 0;
+      quizList.forEach((q, idx) => {
+        if (sel[idx] === q.correctIndex) score++;
       });
-    });
-
-    container.querySelectorAll('[data-blank-id]').forEach((inp) => {
-      inp.addEventListener('input', (e) => {
-        const vals = getFillMap(ch);
-        vals[inp.dataset.blankId] = e.target.value;
-      });
-    });
-
-    container.querySelectorAll(`input[name="bug_${ch.id}"]`).forEach((radio) => {
-      radio.addEventListener('change', (e) => {
-        bugStates.set(ch.id, Number(e.target.value));
-      });
-    });
-
-    container.querySelector('#ex-hint-btn')?.addEventListener('click', () => {
-      const cur = hintLevelShown.get(ch.id) || 0;
-      hintLevelShown.set(ch.id, Math.min(ch.exercise.hints.length, cur + 1));
-      paint();
-    });
-
-    container.querySelector('#ex-solution-btn')?.addEventListener('click', () => {
-      if (solutionVisible.has(ch.id)) solutionVisible.delete(ch.id);
-      else solutionVisible.add(ch.id);
-      paint();
-    });
-
-    container.querySelector('#ex-verify-btn')?.addEventListener('click', () => {
-      const ex = ch.exercise;
-      let ok = false;
-      let msg = '';
-
-      if (ex.type === 'order') {
-        const currentIds = getOrderList(ch).map((it) => it.id);
-        ok = ex.correctOrder.every((id, idx) => currentIds[idx] === id);
-        msg = ok
-          ? 'L\'enchaînement est parfaitement logique ! Chapitre validé.'
-          : 'L\'ordre n\'est pas encore exact. Utilisez les flèches ↑ / ↓ ou consultez un indice.';
-      } else if (ex.type === 'fill') {
-        const vals = getFillMap(ch);
-        const wrong = ex.blanks.filter((b) => !b.accepted.includes(normalizeAnswer(vals[b.id])));
-        ok = wrong.length === 0;
-        msg = ok
-          ? 'Tous les mots-clés VBA sont exacts ! Chapitre validé.'
-          : `À revoir — ${wrong.map((w) => `${w.label} (${w.help || w.placeholder})`).join(' · ')}.`;
-      } else if (ex.type === 'bug') {
-        const chosen = bugStates.get(ch.id);
-        if (chosen === undefined) {
-          msg = 'Sélectionnez d\'abord une proposition ci-dessus.';
-        } else {
-          ok = chosen === ex.correctIndex;
-          msg = ok
-            ? ex.explanation
-            : 'Ce n\'est pas cette piste. Relisez le code bogué ou affichez un indice.';
-        }
-      }
-
-      exerciseFeedback.set(ch.id, { ok, message: msg });
-      if (ok) {
-        completed.add(ch.id);
-        saveCompleted([...completed]);
-        onNotify?.(`Chapitre ${ch.number} validé !`, 'success');
+      const passed = quizList.length === 0 || score === quizList.length;
+      quizResults.set(ch.id, { score, total: quizList.length, passed });
+      recordQuizScore(ch.id, score, quizList.length, ch.competency);
+      if (passed) {
+        markChapterCompleted(activeTrack, ch.id, true);
+        onNotify?.(`Chapitre ${ch.number} validé (${score}/${quizList.length}) !`, 'success');
+      } else {
+        onNotify?.(`Score ${score}/${quizList.length} — relisez les points signalés ou essayez l'exercice de consolidation.`, 'warning');
       }
       paint();
     });
 
-    // Fil Rouge actions
+    // Fil Rouge VBA actions
     container.querySelector('#cur-dl-bas-btn')?.addEventListener('click', () => {
-      const f = downloadChapterBas(ch.filRouge);
-      onNotify?.(`Solution ${f} téléchargée.`, 'success');
+      if (ch.practicalApp?.basCode) {
+        const f = downloadChapterBas(ch.practicalApp);
+        onNotify?.(`Solution ${f} téléchargée.`, 'success');
+      }
     });
 
     container.querySelector('#cur-open-gen-btn')?.addEventListener('click', () => {
-      setState({ selectedOperationId: ch.relatedOpId, guidedParams: {} }, 'selectedOperationId');
-      navigate('guided');
+      if (ch.practicalApp?.relatedOpId) {
+        setState({ selectedOperationId: ch.practicalApp.relatedOpId, guidedParams: {} }, 'selectedOperationId');
+        navigate('guided');
+      }
     });
   };
 

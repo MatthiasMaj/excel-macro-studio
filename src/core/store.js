@@ -1,3 +1,5 @@
+import { loadExecutionContext, saveExecutionContext, excelVersionToPlatformPatch, contextToExcelVersion } from './executionContext.js';
+
 /**
  * Store central réactif avec persistance sécurisée dans localStorage.
  */
@@ -29,11 +31,15 @@ function writeJson(key, value) {
   }
 }
 
+const initialExecContext = loadExecutionContext();
+
 const state = {
   activeView: 'home',
+  academyTarget: null,
   catalogFilterCategory: 'ALL',
   catalogSearch: '',
-  excelVersion: readJson(PERSIST_KEYS.excelVersion, 'excel365'),
+  excelVersion: readJson(PERSIST_KEYS.excelVersion, contextToExcelVersion(initialExecContext)),
+  executionContext: initialExecContext,
   workbookContext: null,
   selectedOperationId: 'sheet_compare_two',
   guidedParams: {},
@@ -55,6 +61,8 @@ const state = {
   freeMode: {
     prompt: '',
     analysis: null,
+    reformulation: '',
+    reformulationConfirmed: false,
     answers: {}
   },
   currentResult: null,
@@ -81,7 +89,17 @@ function notify(changedKey) {
 
 export function setState(patch, notifyKey = '*') {
   Object.assign(state, patch);
-  if ('excelVersion' in patch) writeJson(PERSIST_KEYS.excelVersion, state.excelVersion);
+  if ('executionContext' in patch) {
+    state.executionContext = saveExecutionContext(state.executionContext);
+    state.excelVersion = contextToExcelVersion(state.executionContext);
+    writeJson(PERSIST_KEYS.excelVersion, state.excelVersion);
+  } else if ('excelVersion' in patch) {
+    writeJson(PERSIST_KEYS.excelVersion, state.excelVersion);
+    state.executionContext = saveExecutionContext({
+      ...state.executionContext,
+      ...excelVersionToPlatformPatch(state.excelVersion)
+    });
+  }
   if ('workflowSteps' in patch) writeJson(PERSIST_KEYS.workflowSteps, state.workflowSteps);
   if ('history' in patch) writeJson(PERSIST_KEYS.history, state.history);
   if ('savedLibrary' in patch) writeJson(PERSIST_KEYS.savedLibrary, state.savedLibrary);
@@ -92,12 +110,56 @@ export function setState(patch, notifyKey = '*') {
 export function addHistoryEntry(result) {
   if (!result) return;
   const entry = {
+    lifecycleStatus: 'analyzed',
+    favorite: false,
+    versions: result.versions || [
+      { version: 1, savedAt: result.createdAt || new Date().toISOString(), code: result.code, note: 'Génération initiale' }
+    ],
     ...result,
-    historyId: result.id || `hist_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    historyId: result.historyId || result.id || `hist_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     createdAt: result.createdAt || new Date().toISOString()
   };
   const next = [entry, ...state.history.filter((h) => h.historyId !== entry.historyId)].slice(0, 100);
   setState({ history: next, currentResult: entry }, 'history');
+}
+
+export function toggleFavoriteHistory(historyId) {
+  const next = state.history.map((h) => (h.historyId === historyId ? { ...h, favorite: !h.favorite } : h));
+  const cur = state.currentResult?.historyId === historyId
+    ? { ...state.currentResult, favorite: !state.currentResult.favorite }
+    : state.currentResult;
+  setState({ history: next, currentResult: cur }, 'history');
+}
+
+export function updateHistoryValidationStatus(historyId, status) {
+  const next = state.history.map((h) => (h.historyId === historyId ? { ...h, lifecycleStatus: status } : h));
+  const cur = state.currentResult?.historyId === historyId
+    ? { ...state.currentResult, lifecycleStatus: status }
+    : state.currentResult;
+  setState({ history: next, currentResult: cur }, 'history');
+}
+
+export function recordResultVersion(historyId, nextResult, note = 'Mise à jour') {
+  const target = state.history.find((h) => h.historyId === historyId);
+  const prevVersions = target?.versions || (target ? [{ version: 1, savedAt: target.createdAt, code: target.code, note: 'Initiale' }] : []);
+  const nextVer = {
+    version: prevVersions.length + 1,
+    savedAt: new Date().toISOString(),
+    code: nextResult.code,
+    note
+  };
+  const updated = {
+    ...(target || {}),
+    ...nextResult,
+    historyId: target?.historyId || historyId,
+    versions: [...prevVersions, nextVer],
+    updatedAt: new Date().toISOString()
+  };
+  const next = target
+    ? state.history.map((h) => (h.historyId === historyId ? updated : h))
+    : [updated, ...state.history].slice(0, 100);
+  setState({ history: next, currentResult: updated }, 'history');
+  return updated;
 }
 
 export function removeHistoryEntry(historyId) {

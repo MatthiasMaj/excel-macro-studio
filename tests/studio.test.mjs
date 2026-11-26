@@ -15,8 +15,25 @@ import { analyzeMacroSecurity } from '../src/core/security.js';
 import { MACRO_TEMPLATES } from '../src/services/templatesLibrary.js';
 import { TUTORIAL_CHAPTERS } from '../src/ui/tutorialView.js';
 import { CURRICULUM_LEVELS, CURRICULUM_CHAPTERS } from '../src/services/curriculumData.js';
-import { buildTrainingWorkbookBuffer, createTrainingWorkbookContext } from '../src/services/trainingWorkbook.js';
-import { annotateVbaForBeginners, stripBeginnerAnnotations } from '../src/engine/vbaBeginnerAnnotator.js';
+import { EXCEL_CURRICULUM_LEVELS, EXCEL_CURRICULUM_CHAPTERS } from '../src/services/excelCurriculumData.js';
+import { getEnrichedVbaChapters } from '../src/services/vbaCurriculumEnrichment.js';
+import { validateExerciseAnswer, EXERCISE_TYPE_LABELS } from '../src/services/academyExercises.js';
+import {
+  recordExerciseAttempt,
+  recordQuizScore,
+  needsChapterRemediation,
+  getReviewRecommendations,
+  resetAcademyProgress
+} from '../src/services/academyProgress.js';
+import {
+  buildTrainingWorkbookBuffer,
+  buildExtendedNovaTechWorkbookBuffer,
+  createTrainingWorkbookContext
+} from '../src/services/trainingWorkbook.js';
+import { annotateVbaForBeginners, stripBeginnerAnnotations, applyCommentLevel } from '../src/engine/vbaBeginnerAnnotator.js';
+import { auditVbaCode } from '../src/engine/vbaAuditor.js';
+import { generateOfficeScript, generateOfficeScriptWorkflow } from '../src/engine/officeScriptsGenerator.js';
+import { SCENARIO_DOMAINS } from '../src/services/templatesLibrary.js';
 
 test('Catalogue : 12 catégories A-L et au moins 129 opérations uniques valides', () => {
   assert.equal(CATEGORIES.length, 12);
@@ -223,5 +240,127 @@ test('Annotateur néophyte : commentaires pédagogiques idempotents et préserva
   assert.ok(/rng\.Replace What:="A", _\n\s+Replacement:="B"/.test(annotated));
   assert.equal(annotateVbaForBeginners(annotated), annotated);
   assert.equal(stripBeginnerAnnotations(annotated), sample);
+  assert.ok(!applyCommentLevel(annotated, 'intermediate').includes("' [Explication]"));
+});
+
+test('Académie Excel : Parcours A (5 niveaux, 15 ch.) & Parcours B enrichi (12 notions complémentaires)', () => {
+  assert.equal(EXCEL_CURRICULUM_LEVELS.length, 5);
+  assert.equal(EXCEL_CURRICULUM_CHAPTERS.length, 15);
+
+  const seenTypes = new Set();
+  for (const ch of EXCEL_CURRICULUM_CHAPTERS) {
+    assert.ok(ch.objective && ch.scenario && Array.isArray(ch.prerequisites));
+    assert.ok(ch.theory?.paragraphs?.length >= 2 && ch.vocabulary?.length >= 2);
+    assert.ok(ch.demonstration?.formulaOrCode && ch.practicalApp?.steps?.length >= 2);
+    assert.ok(ch.validationQuiz?.length >= 2 && ch.summary?.length >= 3);
+    assert.ok(
+      ch.furtherReading?.compatibility?.windows &&
+        ch.furtherReading?.compatibility?.mac &&
+        ch.furtherReading?.compatibility?.m365 &&
+        ch.furtherReading?.compatibility?.web
+    );
+    seenTypes.add(ch.guidedExercise.type);
+    seenTypes.add(ch.autonomousExercise.type);
+  }
+  assert.ok(seenTypes.size >= 8, `Au moins 8 formats d'exercices variés attendus, trouvé ${seenTypes.size}`);
+
+  const vbaEnriched = getEnrichedVbaChapters();
+  assert.equal(vbaEnriched.length, 12);
+  for (const ch of vbaEnriched) {
+    assert.ok(ch.furtherReading?.complementaryModule?.codeExample, `Module complémentaire manquant sur ${ch.id}`);
+    assert.ok(ch.autonomousExercise && ch.validationQuiz?.length >= 2);
+  }
+});
+
+test('Système d\'exercices (9 formats) & Progression adaptative + NovaTech 7 onglets', () => {
+  assert.equal(Object.keys(EXERCISE_TYPE_LABELS).length, 9);
+  assert.equal(validateExerciseAnswer({ type: 'mcq', correctIndex: 1 }, { selectedIndex: 1 }).ok, true);
+  assert.equal(validateExerciseAnswer({ type: 'truefalse', correctAnswer: false }, { value: false }).ok, true);
+  assert.equal(validateExerciseAnswer({ type: 'order', correctOrder: ['a', 'b'] }, { order: ['a', 'b'] }).ok, true);
+  assert.equal(
+    validateExerciseAnswer({ type: 'fill', blanks: [{ id: 'x', label: 'X', accepted: ['SOMME'] }] }, { blanks: { x: 'somme' } }).ok,
+    true
+  );
+  assert.equal(validateExerciseAnswer({ type: 'bug', correctIndex: 0 }, { selectedIndex: 0 }).ok, true);
+  assert.equal(validateExerciseAnswer({ type: 'match', correctPairs: { k1: 'v1' } }, { pairs: { k1: 'v1' } }).ok, true);
+  assert.equal(
+    validateExerciseAnswer({ type: 'table_practice', acceptedAnswers: ['=D2*$B$2'] }, { answer: '=d2 * $b$2' }).ok,
+    true
+  );
+  assert.equal(validateExerciseAnswer({ type: 'case_study', correctIndex: 2 }, { selectedIndex: 2 }).ok, true);
+  assert.equal(
+    validateExerciseAnswer(
+      { type: 'open', minLength: 10, expectedConceptGroups: [['tcd'], ['pdf']] },
+      { text: 'Je fais un TCD puis j exporte en PDF.' }
+    ).ok,
+    true
+  );
+
+  resetAcademyProgress();
+  recordExerciseAttempt('ex04_types_formats_references', 'guided', false, 'Types');
+  recordExerciseAttempt('ex04_types_formats_references', 'guided', false, 'Types');
+  assert.equal(needsChapterRemediation('ex04_types_formats_references'), true);
+  recordQuizScore('ex04_types_formats_references', 1, 2, 'Types');
+  const recs = getReviewRecommendations(EXCEL_CURRICULUM_CHAPTERS);
+  assert.ok(recs.some((r) => r.chapterId === 'ex04_types_formats_references'));
+
+  const extBuf = buildExtendedNovaTechWorkbookBuffer();
+  const extWb = XLSX.read(extBuf, { type: 'array' });
+  assert.equal(extWb.SheetNames.length, 7);
+  assert.ok(extWb.SheetNames.includes('Fournisseurs') && extWb.SheetNames.includes('Interventions'));
+});
+
+test('Générateur Office Scripts (Excel Web), Assistant NL maintenance, Audit VBA & Sécurité étendue', () => {
+  // Excel Web ne génère jamais de VBA
+  const osRes = generateSingleMacro(getOperationById('cells_remove_duplicates'), {}, { excelVersion: 'excelWeb' });
+  assert.equal(osRes.language, 'officescripts');
+  assert.ok(osRes.code.includes('function main(workbook: ExcelScript.Workbook)'));
+  assert.ok(!osRes.code.includes('Option Explicit'));
+
+  const wfOs = generateOfficeScriptWorkflow([{ opId: 'cells_delete_empty', enabled: true, params: {} }], { name: 'WebClean' });
+  assert.equal(wfOs.language, 'officescripts');
+
+  // Cas maintenance en langage naturel + diagnostic structuré + reformulation
+  const maintPrompt = 'Je reçois chaque semaine un fichier contenant les interventions de maintenance. Je veux récupérer les nouvelles lignes, les ajouter à mon historique, supprimer les doublons et générer un rapport PDF.';
+  const analysis = analyzeNaturalLanguageRequest(maintPrompt);
+  const stepIds = analysis.detectedSteps.map((s) => s.opId);
+  assert.ok(stepIds.includes('cells_remove_duplicates'));
+  assert.ok(stepIds.includes('export_pdf'));
+  assert.ok(analysis.requirementBreakdown?.reformulation?.length > 10);
+
+  // Scénarios : 7 domaines métier couverts
+  for (const dom of SCENARIO_DOMAINS) {
+    assert.ok(MACRO_TEMPLATES.some((t) => t.domain === dom), `Domaine manquant dans MACRO_TEMPLATES : ${dom}`);
+  }
+
+  // Audit VBA : détection erreurs + correction non destructive + diff
+  const buggyMacro = `Sub Nettoyer()\n  Dim r As Integer\n  Range("A1:B5").Select\n  Selection.ClearContents\n  Worksheets("Test").Delete\nEnd Sub`;
+  const audit = auditVbaCode(buggyMacro);
+  assert.ok(audit.probableErrors.some((e) => e.includes('Option Explicit')));
+  assert.ok(audit.probableErrors.some((e) => e.includes('As Integer')));
+  assert.ok(audit.badPractices.some((b) => b.includes('.Select')));
+  assert.ok(audit.correctedCode.includes('Option Explicit'));
+  assert.ok(audit.correctedCode.includes('As Long'));
+  assert.ok(audit.correctedCode.includes('ClearContents'));
+  assert.ok(audit.diffLines.some((d) => d.type === 'added'));
+  assert.equal(audit.security.riskLevel, 'high');
+  assert.ok(audit.security.checks.some((c) => c.category.includes('Suppression')));
+
+  // Réseau / Shell détectés par security.js
+  assert.equal(analyzeMacroSecurity({}, 'Set x = CreateObject("MSXML2.XMLHTTP")').riskLevel, 'high');
+
+  // Analyseur enrichi : plages nommées, fusions, erreurs formules
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['ColA', 'ColB'],
+    ['OK', { t: 'e', v: 0x0f, w: '#VALUE!' }]
+  ]);
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
+  XLSX.utils.book_append_sheet(wb, ws, 'AuditSheet');
+  const ab = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  const ctx = analyzeWorkbookBuffer(ab, 'AuditTest.xlsx');
+  assert.equal(ctx.sheets[0].mergedCells.length, 1);
+  assert.equal(ctx.sheets[0].formulaErrors.length, 1);
+  assert.ok(ctx.sheets[0].inconsistencies.length >= 2);
 });
 
