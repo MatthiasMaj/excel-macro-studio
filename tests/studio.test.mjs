@@ -170,13 +170,25 @@ test('Cursus complet : 4 niveaux, 12 chapitres, exercices et corrigés VBA valid
     assert.ok(/\bEnd Sub\b/i.test(ch.filRouge.basCode), `End Sub manquant sur filRouge ${ch.id}`);
     assert.ok(getOperationById(ch.relatedOpId), `relatedOpId introuvable dans le catalogue : ${ch.relatedOpId}`);
 
+    const countComments = (src) =>
+      String(src || '').split(/\r?\n/).filter((l) => l.trimStart().startsWith("'")).length;
+    assert.ok(countComments(ch.codeExample) >= 3, `codeExample insuffisamment commenté sur ${ch.id}`);
+    assert.ok(countComments(ch.filRouge.basCode) >= 4, `filRouge.basCode insuffisamment commenté sur ${ch.id}`);
+
     const ex = ch.exercise;
+    assert.ok(ex.guidance && ex.guidance.length > 20, `guidance manquante sur ${ch.id}`);
+    assert.ok(countComments(ex.solutionCode) >= 1, `solutionCode non commenté sur ${ch.id}`);
     assert.ok(Array.isArray(ex.hints) && ex.hints.length >= 2);
     if (ex.type === 'order') {
       assert.equal(ex.items.length, ex.correctOrder.length);
     } else if (ex.type === 'fill') {
-      assert.ok(ex.blanks.length >= 1 && ex.blanks.every((b) => Array.isArray(b.accepted) && b.accepted.length >= 1));
+      assert.ok(countComments(ex.templateLines.join('\n')) >= 2, `templateLines sans commentaires sur ${ch.id}`);
+      assert.ok(
+        ex.blanks.length >= 1 &&
+          ex.blanks.every((b) => Array.isArray(b.accepted) && b.accepted.length >= 1 && b.help && b.help.length > 10)
+      );
     } else if (ex.type === 'bug') {
+      assert.ok(countComments(ex.buggyCode) >= 2, `buggyCode sans commentaires sur ${ch.id}`);
       assert.ok(ex.buggyCode && ex.options.length >= 3 && ex.correctIndex >= 0);
     } else {
       assert.fail(`Type d'exercice inconnu : ${ex.type}`);

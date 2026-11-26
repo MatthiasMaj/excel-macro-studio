@@ -113,20 +113,21 @@ export function renderTutorialView(container, { navigate, onNotify }) {
       `;
     } else if (ex.type === 'fill') {
       const vals = getFillMap(ch);
-      const previewCode = ex.templateLines
-        .map((line) => escapeHtml(line))
-        .join('\n');
+      const previewCode = highlightVbaToHtml(ex.templateLines.join('\n'));
       bodyHtml = `
         <div class="vba-viewer">
-          <div class="vba-viewer-toolbar"><span>Code à compléter</span><span>VBA</span></div>
-          <pre class="vba-code-scroll" style="margin:0">${previewCode}</pre>
+          <div class="vba-viewer-toolbar"><span>Code commenté à compléter</span><span>VBA</span></div>
+          <div class="vba-code-scroll" tabindex="0">${previewCode}</div>
         </div>
         <div class="stack-sm">
           ${ex.blanks
             .map(
               (b) => `
             <div class="blank-row">
-              <label for="blank_${escapeHtml(ch.id)}_${escapeHtml(b.id)}">${escapeHtml(b.label)}</label>
+              <div>
+                <label for="blank_${escapeHtml(ch.id)}_${escapeHtml(b.id)}"><strong>${escapeHtml(b.label)}</strong></label>
+                ${b.help ? `<div class="field-hint">${escapeHtml(b.help)}</div>` : ''}
+              </div>
               <input
                 type="text"
                 id="blank_${escapeHtml(ch.id)}_${escapeHtml(b.id)}"
@@ -189,6 +190,15 @@ export function renderTutorialView(container, { navigate, onNotify }) {
           <h3 id="ex-heading-${escapeHtml(ch.id)}" style="margin-bottom:0.25rem">3. Pratiquer ici — Exercice interactif</h3>
           <p style="margin:0">${escapeHtml(ex.instruction)}</p>
         </div>
+
+        ${
+          ex.guidance
+            ? `<div class="alert-banner alert-info">
+                 <strong>Comment réfléchir pour réussir :</strong>
+                 <span>${escapeHtml(ex.guidance)}</span>
+               </div>`
+            : ''
+        }
 
         ${bodyHtml}
 
@@ -392,6 +402,16 @@ export function renderTutorialView(container, { navigate, onNotify }) {
                 <button type="button" class="btn-primary btn-sm" id="cur-dl-bas-btn">Télécharger la solution (.bas)</button>
                 <button type="button" class="btn-secondary btn-sm" id="cur-open-gen-btn">Ouvrir l'équivalent dans le Générateur</button>
               </div>
+              <details class="advanced-panel">
+                <summary>Voir le code VBA commenté du défi Fil Rouge (${escapeHtml(ch.filRouge.basModuleName)}.bas)</summary>
+                <div class="vba-viewer">
+                  <div class="vba-viewer-toolbar">
+                    <span>${escapeHtml(ch.filRouge.basModuleName)}.bas</span>
+                    <span>Code commenté ligne par ligne</span>
+                  </div>
+                  <div class="vba-code-scroll" tabindex="0">${highlightVbaToHtml(ch.filRouge.basCode)}</div>
+                </div>
+              </details>
             </section>
 
             <nav class="tutorial-pager" aria-label="Navigation entre chapitres">
@@ -515,7 +535,7 @@ export function renderTutorialView(container, { navigate, onNotify }) {
         ok = wrong.length === 0;
         msg = ok
           ? 'Tous les mots-clés VBA sont exacts ! Chapitre validé.'
-          : `Vérifiez : ${wrong.map((w) => w.label).join(', ')}.`;
+          : `À revoir — ${wrong.map((w) => `${w.label} (${w.help || w.placeholder})`).join(' · ')}.`;
       } else if (ex.type === 'bug') {
         const chosen = bugStates.get(ch.id);
         if (chosen === undefined) {

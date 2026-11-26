@@ -86,3 +86,4 @@ export function createTrainingWorkbookContext() {
   const buf = buildTrainingWorkbookBuffer();
   return analyzeWorkbookBuffer(buf, 'Entreprise_NovaTech_FilRouge.xlsx');
 }
+
