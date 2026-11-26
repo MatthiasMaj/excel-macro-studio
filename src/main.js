@@ -17,7 +17,6 @@ import { renderAnalyzerView } from './ui/analyzerView.js';
 import { renderLibraryView } from './ui/libraryView.js';
 import { renderHistoryView } from './ui/historyView.js';
 import { renderTutorialView } from './ui/tutorialView.js';
-import { renderLearnVbaView } from './ui/learnVbaView.js';
 import { renderResultPanel } from './ui/resultPanel.js';
 
 const mainContent = document.getElementById('main-content');
@@ -191,10 +190,8 @@ function renderCurrentView() {
       renderHistoryView(mainContent, ctx);
       break;
     case 'tutorial':
-      renderTutorialView(mainContent, ctx);
-      break;
     case 'learn':
-      renderLearnVbaView(mainContent, ctx);
+      renderTutorialView(mainContent, ctx);
       break;
     default:
       renderHomeView(mainContent, ctx);

@@ -14,7 +14,8 @@ import { validateSheetName, validateColumnRef } from '../src/core/validation.js'
 import { analyzeMacroSecurity } from '../src/core/security.js';
 import { MACRO_TEMPLATES } from '../src/services/templatesLibrary.js';
 import { TUTORIAL_CHAPTERS } from '../src/ui/tutorialView.js';
-import { VBA_LESSONS } from '../src/ui/learnVbaView.js';
+import { CURRICULUM_LEVELS, CURRICULUM_CHAPTERS } from '../src/services/curriculumData.js';
+import { buildTrainingWorkbookBuffer, createTrainingWorkbookContext } from '../src/services/trainingWorkbook.js';
 import { annotateVbaForBeginners, stripBeginnerAnnotations } from '../src/engine/vbaBeginnerAnnotator.js';
 
 test('Catalogue : 12 catégories A-L et au moins 129 opérations uniques valides', () => {
@@ -153,15 +154,42 @@ test('Sécurité, validation, coloration syntaxique, raffineur et exports (.bas 
   assert.ok(html.includes('&lt;script&gt;'));
 });
 
-test('Tutoriel : 8 chapitres complets et structurés avec identifiants uniques', () => {
-  assert.equal(TUTORIAL_CHAPTERS.length, 8);
+test('Cursus complet : 4 niveaux, 12 chapitres, exercices et corrigés VBA valides', () => {
+  assert.equal(CURRICULUM_LEVELS.length, 4);
+  assert.equal(CURRICULUM_CHAPTERS.length, 12);
+  assert.equal(TUTORIAL_CHAPTERS.length, 12);
   const ids = new Set();
-  for (const ch of TUTORIAL_CHAPTERS) {
+
+  for (const ch of CURRICULUM_CHAPTERS) {
     assert.ok(ch.id && !ids.has(ch.id), `ID de chapitre dupliqué : ${ch.id}`);
     ids.add(ch.id);
-    assert.ok(ch.title && ch.summary && ch.level);
-    assert.ok(Array.isArray(ch.sections) && ch.sections.length >= 1);
+    assert.ok(ch.title && ch.summary && ch.beforeAfter?.before && ch.beforeAfter?.after);
+    assert.ok(ch.codeExample.includes('Option Explicit'), `Option Explicit manquant sur exemple ${ch.id}`);
+    assert.ok(ch.filRouge?.basCode.includes('Option Explicit'), `Option Explicit manquant sur filRouge ${ch.id}`);
+    assert.ok(/\bSub\s+\w+/i.test(ch.filRouge.basCode), `Sub manquante sur filRouge ${ch.id}`);
+    assert.ok(/\bEnd Sub\b/i.test(ch.filRouge.basCode), `End Sub manquant sur filRouge ${ch.id}`);
+    assert.ok(getOperationById(ch.relatedOpId), `relatedOpId introuvable dans le catalogue : ${ch.relatedOpId}`);
+
+    const ex = ch.exercise;
+    assert.ok(Array.isArray(ex.hints) && ex.hints.length >= 2);
+    if (ex.type === 'order') {
+      assert.equal(ex.items.length, ex.correctOrder.length);
+    } else if (ex.type === 'fill') {
+      assert.ok(ex.blanks.length >= 1 && ex.blanks.every((b) => Array.isArray(b.accepted) && b.accepted.length >= 1));
+    } else if (ex.type === 'bug') {
+      assert.ok(ex.buggyCode && ex.options.length >= 3 && ex.correctIndex >= 0);
+    } else {
+      assert.fail(`Type d'exercice inconnu : ${ex.type}`);
+    }
   }
+});
+
+test('Classeur Fil Rouge NovaTech : 4 onglets réalistes et relations détectées', () => {
+  const buf = buildTrainingWorkbookBuffer();
+  const ctx = createTrainingWorkbookContext();
+  assert.ok(buf.byteLength > 1000);
+  assert.deepEqual(ctx.sheets.map((s) => s.name), ['Ventes_Brutes', 'Clients', 'Stocks', 'Parametres']);
+  assert.ok(ctx.relations.some((r) => r.type === 'shared_key' && r.columnName === 'Code_Client'));
 });
 
 test('Annotateur néophyte : commentaires pédagogiques idempotents et préservation des continuations', () => {
@@ -180,23 +208,8 @@ test('Annotateur néophyte : commentaires pédagogiques idempotents et préserva
   const annotated = annotateVbaForBeginners(sample);
   assert.ok(annotated.includes("' [Explication]"));
   assert.ok(annotated.includes('Boucle inversée'));
-  // Ne doit pas insérer de commentaire entre une ligne finissant par " _" et sa suite
   assert.ok(/rng\.Replace What:="A", _\n\s+Replacement:="B"/.test(annotated));
-  // Idempotence
   assert.equal(annotateVbaForBeginners(annotated), annotated);
-  // Retrait propre
   assert.equal(stripBeginnerAnnotations(annotated), sample);
-});
-
-test('Cours Apprendre VBA : 6 leçons complètes avec quiz et exercices', () => {
-  assert.equal(VBA_LESSONS.length, 6);
-  const ids = new Set();
-  for (const l of VBA_LESSONS) {
-    assert.ok(l.id && !ids.has(l.id));
-    ids.add(l.id);
-    assert.ok(l.title && l.codeExample && l.exercise?.solution);
-    assert.ok(Array.isArray(l.quiz?.options) && l.quiz.options.length === 3);
-    assert.ok(l.quiz.correctIndex >= 0 && l.quiz.correctIndex < l.quiz.options.length);
-  }
 });
 

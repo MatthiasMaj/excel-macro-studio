@@ -35,8 +35,7 @@ export function renderHomeView(container, { navigate }) {
             <button type="button" class="btn-primary" data-nav="guided">Démarrer le mode guidé</button>
             <button type="button" class="btn-secondary" data-nav="workflow">Créer un workflow multi-opérations</button>
             <button type="button" class="btn-secondary" data-nav="free">Décrire en langage naturel</button>
-            <button type="button" class="btn-secondary" data-nav="tutorial">Suivre le tutoriel pas à pas</button>
-            <button type="button" class="btn-secondary" data-nav="learn">Apprendre VBA (Cours débutant)</button>
+            <button type="button" class="btn-secondary" data-nav="tutorial">Suivre le cursus Excel &amp; VBA (12 chapitres)</button>
             <button type="button" class="btn-ghost" data-nav="analyzer">Analyser un fichier Excel</button>
           </div>
         </div>
