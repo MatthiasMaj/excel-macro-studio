@@ -4,6 +4,8 @@
 
 **Académie d'apprentissage Excel & VBA, Assistant d'automatisation (VBA & Office Scripts), Audit de macros et Analyseur de classeurs — 100 % local, sans IA externe ni transfert de données.**
 
+*Créé par **Matthias Majid***
+
 [![Démo en ligne](https://img.shields.io/badge/D%C3%A9mo%20en%20ligne-GitHub%20Pages-2563eb?style=for-the-badge&logo=githubpages&logoColor=white)](https://matthiasmaj.github.io/excel-macro-studio/)
 [![Version](https://img.shields.io/badge/Version-1.0.0-16a34a?style=for-the-badge)](./package.json)
 [![Tests](https://img.shields.io/badge/Tests-13%2F13%20passants-10b981?style=for-the-badge&logo=node.js&logoColor=white)](./tests/studio.test.mjs)
@@ -203,3 +205,9 @@ Application en ligne : **https://matthiasmaj.github.io/excel-macro-studio/**
 * **Vite** (`^6.2.0`) avec `base: './'` pour compatibilité directe **GitHub Pages**
 * **SheetJS (`xlsx` `^0.18.5`)** pour l'analyse et la création locale de classeurs `.xlsx`
 * **`node --test`** pour la suite de tests automatisés
+
+---
+
+## 👤 Auteur
+
+Créé par **Matthias Majid**.

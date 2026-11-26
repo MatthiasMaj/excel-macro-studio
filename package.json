@@ -2,6 +2,7 @@
   "name": "excel-macro-studio",
   "version": "1.0.0",
   "private": true,
+  "author": "Matthias Majid",
   "description": "Excel Macro Studio — Générateur universel de macros Excel VBA",
   "type": "module",
   "scripts": {
