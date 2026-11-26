@@ -1,0 +1,145 @@
+/* Tokens de conception — Excel Macro Studio
+ * Conforme aux guides dark-mode, dark-mode-toggle et component-specific-light-dark-theme :
+ * - Ne jamais enregistrer les tokens de couleur via @property (syntax: <color>),
+ *   afin de préserver la réévaluation dynamique de light-dark() dans les sous-arbres.
+ */
+:root {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "SFMono-Regular", Consolas, monospace;
+
+  /* Palettes brutes */
+  --emerald-light: #107C41;
+  --emerald-hover-light: #0B5E31;
+  --emerald-soft-light: #E7F5ED;
+  --emerald-dark: #22C55E;
+  --emerald-hover-dark: #16A34A;
+  --emerald-soft-dark: #0D2E1C;
+
+  --bg-light: #F5F7FA;
+  --surface-light: #FFFFFF;
+  --surface-2-light: #EEF2F6;
+  --border-light: #D8E0E8;
+  --text-light: #0F172A;
+  --text-muted-light: #475569;
+
+  --bg-dark: #0B1120;
+  --surface-dark: #111827;
+  --surface-2-dark: #1E293B;
+  --border-dark: #283548;
+  --text-dark: #F1F5F9;
+  --text-muted-dark: #94A3B8;
+
+  /* Valeurs par défaut (clair) + fallback @media (prefers-color-scheme: dark) */
+  --bg-page: var(--bg-light);
+  --surface: var(--surface-light);
+  --surface-subtle: var(--surface-2-light);
+  --border-color: var(--border-light);
+  --text-primary: var(--text-light);
+  --text-secondary: var(--text-muted-light);
+  --accent: var(--emerald-light);
+  --accent-hover: var(--emerald-hover-light);
+  --accent-soft: var(--emerald-soft-light);
+  --accent-contrast: #FFFFFF;
+
+  --danger: #DC2626;
+  --danger-soft: #FEE2E2;
+  --warning: #D97706;
+  --warning-soft: #FEF3C7;
+  --info: #2563EB;
+  --info-soft: #DBEAFE;
+  --success: #15803D;
+  --success-soft: #DCFCE7;
+
+  @media (prefers-color-scheme: dark) {
+    --bg-page: var(--bg-dark);
+    --surface: var(--surface-dark);
+    --surface-subtle: var(--surface-2-dark);
+    --border-color: var(--border-dark);
+    --text-primary: var(--text-dark);
+    --text-secondary: var(--text-muted-dark);
+    --accent: var(--emerald-dark);
+    --accent-hover: var(--emerald-hover-dark);
+    --accent-soft: var(--emerald-soft-dark);
+    --accent-contrast: #052E16;
+    --danger: #F87171;
+    --danger-soft: #3B1219;
+    --warning: #FBBF24;
+    --warning-soft: #3A2506;
+    --info: #60A5FA;
+    --info-soft: #172554;
+    --success: #4ADE80;
+    --success-soft: #052E16;
+  }
+
+  /* Suivi dynamique de color-scheme via light-dark() lorsque supporté */
+  @supports (color: light-dark(white, black)) {
+    --bg-page: light-dark(var(--bg-light), var(--bg-dark));
+    --surface: light-dark(var(--surface-light), var(--surface-dark));
+    --surface-subtle: light-dark(var(--surface-2-light), var(--surface-2-dark));
+    --border-color: light-dark(var(--border-light), var(--border-dark));
+    --text-primary: light-dark(var(--text-light), var(--text-dark));
+    --text-secondary: light-dark(var(--text-muted-light), var(--text-muted-dark));
+    --accent: light-dark(var(--emerald-light), var(--emerald-dark));
+    --accent-hover: light-dark(var(--emerald-hover-light), var(--emerald-hover-dark));
+    --accent-soft: light-dark(var(--emerald-soft-light), var(--emerald-soft-dark));
+    --accent-contrast: light-dark(#FFFFFF, #052E16);
+    --danger: light-dark(#DC2626, #F87171);
+    --danger-soft: light-dark(#FEE2E2, #3B1219);
+    --warning: light-dark(#B45309, #FBBF24);
+    --warning-soft: light-dark(#FEF3C7, #3A2506);
+    --info: light-dark(#1D4ED8, #60A5FA);
+    --info-soft: light-dark(#DBEAFE, #172554);
+    --success: light-dark(#15803D, #4ADE80);
+    --success-soft: light-dark(#DCFCE7, #052E16);
+  }
+
+  /* Base obligatoire light dark + surcharges via meta[name="color-scheme"] */
+  color-scheme: light dark;
+  accent-color: var(--accent);
+  color: var(--text-primary);
+
+  &:has(> head > meta[name="color-scheme"][content="dark"]) {
+    color-scheme: dark;
+  }
+
+  &:has(> head > meta[name="color-scheme"][content="light"]) {
+    color-scheme: light;
+  }
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 6px 20px rgb(0 0 0 / 0.10);
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.18);
+  --sidebar-width: 264px;
+  --topbar-height: 62px;
+}
+
+/* Fallback CSS si :has() n'est pas utilisé avec light-dark() sur des navigateurs plus anciens */
+:root:has(> head > meta[name="color-scheme"][content="light"]) {
+  --bg-page: var(--bg-light);
+  --surface: var(--surface-light);
+  --surface-subtle: var(--surface-2-light);
+  --border-color: var(--border-light);
+  --text-primary: var(--text-light);
+  --text-secondary: var(--text-muted-light);
+  --accent: var(--emerald-light);
+  --accent-hover: var(--emerald-hover-light);
+  --accent-soft: var(--emerald-soft-light);
+  --accent-contrast: #FFFFFF;
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"]) {
+  --bg-page: var(--bg-dark);
+  --surface: var(--surface-dark);
+  --surface-subtle: var(--surface-2-dark);
+  --border-color: var(--border-dark);
+  --text-primary: var(--text-dark);
+  --text-secondary: var(--text-muted-dark);
+  --accent: var(--emerald-dark);
+  --accent-hover: var(--emerald-hover-dark);
+  --accent-soft: var(--emerald-soft-dark);
+  --accent-contrast: #052E16;
+}
+

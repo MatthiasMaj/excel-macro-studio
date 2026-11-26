@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    try {
+      document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem('ems-color-scheme') ?? 'light dark';
+    } catch {}
+  </script>
+  <title>Excel Macro Studio — Générateur universel de macros VBA</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23107C41'/%3E%3Cpath d='M8 9h16v3H8zm0 5.5h10v3H8zm0 5.5h16v3H8z' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/src/styles/tokens.css">
+  <link rel="stylesheet" href="/src/styles/base.css">
+  <link rel="stylesheet" href="/src/styles/layout.css">
+  <link rel="stylesheet" href="/src/styles/components.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
+  <div class="app-shell" id="app-shell">
+    <!-- Backdrop mobile pour la barre latérale -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
+
+    <!-- Barre latérale -->
+    <aside class="sidebar" id="sidebar" aria-label="Navigation principale">
+      <div class="sidebar-brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <path d="M3 9h18M9 21V9"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">Excel Macro Studio</span>
+          <span class="brand-sub">Générateur VBA universel</span>
+        </div>
+        <button type="button" class="btn-icon sidebar-close" id="sidebar-close-btn" aria-label="Fermer le menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Vues de l'application">
+        <div class="nav-group">
+          <span class="nav-group-label">Découverte</span>
+          <button type="button" class="nav-item" data-view="home" aria-current="page">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+            <span>Accueil</span>
+          </button>
+          <button type="button" class="nav-item" data-view="tutorial">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <span>Tutoriel &amp; Guide</span>
+          </button>
+          <button type="button" class="nav-item" data-view="learn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            <span>Apprendre VBA</span>
+          </button>
+          <button type="button" class="nav-item" data-view="catalog">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span>Catalogue (12 cat.)</span>
+            <span class="nav-badge" id="nav-catalog-count">129</span>
+          </button>
+        </div>
+
+        <div class="nav-group">
+          <span class="nav-group-label">Génération</span>
+          <button type="button" class="nav-item" data-view="guided">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span>Mode guidé</span>
+          </button>
+          <button type="button" class="nav-item" data-view="workflow">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="12" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.7 7.3l6.6 3.4M15.3 13.3l-6.6 3.4"/></svg>
+            <span>Multi-opérations</span>
+            <span class="nav-badge" id="nav-workflow-count" hidden>0</span>
+          </button>
+          <button type="button" class="nav-item" data-view="free">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 4.5L18.5 9l-4.6 1.5L12 15l-1.9-4.5L5.5 9l4.6-1.5z"/><path d="M19 16l.9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9z"/></svg>
+            <span>Mode libre (NL)</span>
+          </button>
+        </div>
+
+        <div class="nav-group">
+          <span class="nav-group-label">Classeur &amp; Mémoire</span>
+          <button type="button" class="nav-item" data-view="analyzer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+            <span>Analyseur Excel</span>
+          </button>
+          <button type="button" class="nav-item" data-view="library">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <span>Bibliothèque</span>
+          </button>
+          <button type="button" class="nav-item" data-view="history">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            <span>Historique</span>
+            <span class="nav-badge" id="nav-history-count" hidden>0</span>
+          </button>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button type="button" class="btn-ghost sidebar-action" id="theme-toggle-btn" aria-label="Basculer le thème clair ou sombre">
+          <span class="theme-option theme-to-dark">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <span>Mode sombre</span>
+          </span>
+          <span class="theme-option theme-to-light">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <span>Mode clair</span>
+          </span>
+        </button>
+
+        <button type="button" class="btn-ghost sidebar-action" id="open-settings-btn" command="show-modal" commandfor="settings-dialog">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Paramètres</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Zone principale -->
+    <div class="main-column">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="btn-icon mobile-menu-btn" id="mobile-menu-btn" aria-label="Ouvrir le menu de navigation">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+
+          <div class="global-search-wrap">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input
+              type="search"
+              id="global-search-input"
+              class="global-search-input"
+              placeholder="Rechercher une opération VBA (ex: doublons, PDF, Outlook, TVA...)"
+              aria-label="Rechercher une opération VBA"
+              autocomplete="off"
+            >
+            <kbd class="search-shortcut" aria-hidden="true">/</kbd>
+            <div class="search-dropdown" id="global-search-results" hidden role="region" aria-label="Résultats de recherche rapide"></div>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <button type="button" class="btn-secondary btn-sm" id="topbar-tutorial-btn" title="Ouvrir le tutoriel complet pas à pas">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <span>Tutoriel</span>
+          </button>
+
+          <button type="button" class="workbook-pill" id="topbar-workbook-pill" title="Ouvrir l'analyseur de fichier Excel">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="topbar-workbook-label">Aucun classeur analysé</span>
+          </button>
+
+          <label class="version-select-wrap">
+            <span class="visually-hidden">Version d'Excel cible</span>
+            <select id="global-excel-version" class="select-compact" aria-label="Version d'Excel cible">
+              <option value="excel365">Excel 365 / 2021</option>
+              <option value="excel2019">Excel 2019 / 2016</option>
+              <option value="excelMac">Excel pour Mac</option>
+            </select>
+          </label>
+        </div>
+      </header>
+
+      <main class="main-content" id="main-content" tabindex="-1">
+        <!-- Le contenu de la vue active est monté ici -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Région live pour les notifications -->
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Modale Paramètres & IA -->
+  <dialog id="settings-dialog" class="app-dialog" aria-labelledby="settings-dialog-title" closedby="any">
+    <div class="dialog-header">
+      <h1 id="settings-dialog-title">Paramètres &amp; Confidentialité</h1>
+      <button type="button" class="btn-icon" command="close" commandfor="settings-dialog" aria-label="Fermer les paramètres">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <form id="settings-form" class="dialog-body">
+      <fieldset class="settings-section">
+        <legend>Apparence de l'interface</legend>
+        <div class="radio-group-3">
+          <label class="radio-card">
+            <input type="radio" name="themeMode" value="system">
+            <span>Système <small id="system-theme-hint"></small></span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="themeMode" value="light">
+            <span>Clair</span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="themeMode" value="dark">
+            <span>Sombre</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="settings-section">
+        <legend>Confidentialité — Exécution 100 % locale</legend>
+        <div class="alert-banner alert-success">
+          <strong>Aucune donnée transmise à l'extérieur</strong>
+          <span>
+            Toutes les opérations (12 catégories), l'analyseur de langage naturel et l'analyseur de fichiers Excel s'exécutent intégralement dans votre navigateur.
+            Aucun fichier Excel, nom de feuille, en-tête ou macro n'est jamais envoyé vers une API externe ou un serveur distant.
+          </span>
+        </div>
+      </fieldset>
+
+      <div class="dialog-footer">
+        <button type="button" class="btn-secondary" command="close" commandfor="settings-dialog">Annuler</button>
+        <button type="submit" class="btn-primary">Enregistrer les paramètres</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modale Confirmation -->
+  <dialog id="confirm-dialog" class="app-dialog app-dialog-sm" aria-labelledby="confirm-dialog-title">
+    <div class="dialog-header">
+      <h1 id="confirm-dialog-title">Confirmer l'action</h1>
+    </div>
+    <div class="dialog-body">
+      <p id="confirm-dialog-message"></p>
+    </div>
+    <form method="dialog" class="dialog-footer">
+      <button value="cancel" class="btn-secondary" autofocus>Annuler</button>
+      <button value="confirm" class="btn-danger" id="confirm-dialog-ok">Confirmer</button>
+    </form>
+  </dialog>
+
+  <!-- Modale Aperçu Macro (depuis Bibliothèque ou Historique) -->
+  <dialog id="preview-dialog" class="app-dialog app-dialog-lg" aria-labelledby="preview-dialog-title" closedby="any">
+    <div class="dialog-header">
+      <h1 id="preview-dialog-title">Aperçu de la macro</h1>
+      <button type="button" class="btn-icon" command="close" commandfor="preview-dialog" aria-label="Fermer l'aperçu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="dialog-body" id="preview-dialog-body"></div>
+  </dialog>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
+
