@@ -10,7 +10,7 @@
 [![Déploiement](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088ff?style=for-the-badge&logo=githubactions&logoColor=white)](./.github/workflows/deploy.yml)
 [![100% Local](https://img.shields.io/badge/Confidentialit%C3%A9-100%25%20Local-0f172a?style=for-the-badge)](#confidentialit%C3%A9-s%C3%A9curit%C3%A9-et-limites-connues)
 
-[Accéder à l'application en ligne](https://matthiasmaj.github.io/excel-macro-studio/) • [Académie Excel](#-acad%C3%A9mie-excel--vba-parcours-a--b) • [Assistant & Générateur](#-assistant-et-g%C3%A9n%C3%A9rateur-dautomatisations) • [Audit & Analyseur](#-audit-vba-et-analyseur-de-classeurs) • [Architecture](#-architecture-du-projet)
+[Accéder à l'application en ligne](https://matthiasmaj.github.io/excel-macro-studio/) • [Guide rapide](#-guide-dutilisation-rapide) • [Académie Excel](#-acad%C3%A9mie-excel--vba-parcours-a--b) • [Assistant & Générateur](#-assistant-et-g%C3%A9n%C3%A9rateur-dautomatisations) • [Audit & Analyseur](#-audit-vba-et-analyseur-de-classeurs) • [Architecture](#-architecture-du-projet)
 
 </div>
 
@@ -25,6 +25,21 @@
 - **Auditer et corriger du code VBA existant** (explication, erreurs probables, mauvaises pratiques, risques sécurité, optimisations et diff avant/après).
 
 Toute l'analyse et la génération s'exécutent **100 % côté client dans le navigateur**.
+
+---
+
+## 🧭 Guide d'utilisation rapide
+
+1. **Apprendre pas à pas** : ouvrez **Académie Excel (A & B)**, démarrez par le **Parcours A** si vous débutez sur Excel (aucune programmation requise) ou passez au **Parcours B** pour apprendre le VBA, et téléchargez les classeurs d'entraînement **NovaTech**.
+2. **Adapter à votre fichier réel (recommandé)** : ouvrez **Analyseur Excel** et déposez un classeur (`.xlsx`, `.xlsm`, `.xls`, `.csv`) ou chargez un exemple — vos noms de feuilles et colonnes pré-remplissent ensuite automatiquement les formulaires du générateur.
+3. **Générer une automatisation** :
+   - **Assistant (Langage naturel)** : décrivez votre besoin en français, validez/modifiez la reformulation proposée, répondez aux éventuelles questions ciblées puis choisissez votre plateforme (**Windows**, **Mac** ou **Excel Web**).
+   - **Mode rapide (Guidé)** & **Multi-opérations** : sélectionnez directement parmi les **129 opérations** ou enchaînez un pipeline personnalisé.
+4. **Auditer une macro existante** : collez votre VBA dans **Audit & Correction VBA** pour inspecter erreurs, mauvaises pratiques, risques et récupérer une version corrigée avec diff Avant/Après.
+5. **Installer dans Excel** :
+   - **Excel Desktop (Windows / Mac)** : importez le fichier `.bas` dans l'éditeur VBA (`Alt + F11` / `Option + F11` → `Fichier > Importer`) ou collez le code, puis enregistrez le classeur au format **`.xlsm`**.
+   - **Excel Web (Microsoft 365)** : sélectionnez **Excel Web (Office Scripts)**, récupérez le script **`.osts`**, puis collez-le dans **Automatisation > Nouveau script**.
+6. **Recherche globale** : appuyez sur `/` depuis n'importe quelle vue pour retrouver instantanément une leçon, un scénario métier ou une opération VBA.
 
 ---
 
@@ -54,6 +69,16 @@ L'Académie distingue clairement savoir utiliser Excel et savoir l'automatiser e
 
 * **Mode Assistant (Langage naturel local)** : décomposition structurée du besoin (résultat attendu, feuilles/données, opérations, risques, ambiguïtés), **reformulation éditable et validable** avant génération et questions ciblées pour ne jamais inventer vos noms d'onglets ou colonnes.
 * **Contexte d'exécution cible** (`executionContext.js`) : Excel Windows Desktop, Excel pour Mac, ou **Excel Web (Office Scripts `.osts` TypeScript)**, volume de données, fréquence et niveau de commentaires configurables (**Débutant / Intermédiaire / Avancé**).
+
+### VBA vs Office Scripts selon votre environnement
+
+| Critère | VBA (`.bas` / `.xlsm`) | Office Scripts (`.osts`) |
+| :--- | :--- | :--- |
+| **Environnement d'exécution** | Excel Desktop (Windows / Mac) | Excel Web et Excel Desktop M365 (onglet Automatisation) |
+| **Langage utilisé** | Visual Basic for Applications (`.bas` / `.xlsm`) | TypeScript / JavaScript (`.osts`) |
+| **Accès disque local / Outlook / Word** | Oui sur Windows (`FSO`, `Dir`, COM) | Non : sandbox cloud (nécessite Power Automate pour fichiers/e-mails) |
+| **Événements temps réel (`Worksheet_Change`)** | Oui nativement | Non (déclenchement manuel, bouton ou Power Automate) |
+
 * **Mode Rapide (Guidé)** & **Générateur Multi-opérations (Workflows)** couvrant **129 opérations** sur **12 catégories (A à L)** :
 
 | Code | Catégorie | Opérations | Code | Catégorie | Opérations |
@@ -81,39 +106,52 @@ L'Académie distingue clairement savoir utiliser Excel et savoir l'automatiser e
 
 ```text
 excel-macro-studio/
-├── .github/workflows/deploy.yml      # CI/CD : tests, build et déploiement GitHub Pages
+├── .github/workflows/deploy.yml       # CI/CD : tests, build et déploiement GitHub Pages
 ├── src/
-│   ├── catalog/                      # 12 catégories (A à L) et 129 opérations (ops/catA..catL)
+│   ├── catalog/                       # 12 catégories (A à L) et 129 opérations (ops/catA..catL)
 │   ├── core/
-│   │   ├── executionContext.js       # Paramétrage plateforme (Win/Mac/Web), volume et commentaires
-│   │   ├── security.js               # Sanitisation DOM + analyse statique des risques VBA
-│   │   ├── store.js                  # État central, favoris, versions et persistance localStorage
-│   │   ├── theme.js                  # Thème clair / sombre / système
-│   │   └── validation.js             # Validation des paramètres formulaires
+│   │   ├── executionContext.js        # Paramétrage plateforme (Win/Mac/Web), volume et commentaires
+│   │   ├── security.js                # Sanitisation DOM + analyse statique des risques VBA
+│   │   ├── store.js                   # État central, favoris, versions et persistance localStorage
+│   │   ├── theme.js                   # Thème clair / sombre / système
+│   │   └── validation.js              # Validation des paramètres formulaires
 │   ├── engine/
-│   │   ├── officeScriptsGenerator.js # Générateur TypeScript (.osts) dédié à Excel Web
-│   │   ├── vbaAuditor.js             # Audit statique, correction non destructive et diff ligne par ligne
-│   │   ├── vbaBeginnerAnnotator.js   # Niveaux de commentaires (Débutant / Intermédiaire / Avancé)
-│   │   ├── vbaGenerator.js           # Générateur principal + routage Office Scripts
-│   │   ├── vbaHighlighter.js         # Coloration syntaxique
-│   │   ├── vbaRefiner.js             # Améliorations ciblées (confirmation, sauvegarde, journal, Mac)
-│   │   ├── vbaUtils.js               # Helpers VBA échappés
-│   │   └── workflowComposer.js       # Composition multi-opérations (VBA ou Office Scripts)
+│   │   ├── officeScriptsGenerator.js  # Générateur TypeScript (.osts) dédié à Excel Web
+│   │   ├── vbaAuditor.js              # Audit statique, correction non destructive et diff ligne par ligne
+│   │   ├── vbaBeginnerAnnotator.js    # Niveaux de commentaires (Débutant / Intermédiaire / Avancé)
+│   │   ├── vbaGenerator.js            # Générateur principal + routage Office Scripts
+│   │   ├── vbaHighlighter.js          # Coloration syntaxique
+│   │   ├── vbaRefiner.js              # Améliorations ciblées (confirmation, sauvegarde, journal, Mac)
+│   │   ├── vbaUtils.js                # Helpers VBA échappés
+│   │   └── workflowComposer.js        # Composition multi-opérations (VBA ou Office Scripts)
 │   ├── services/
-│   │   ├── academyExercises.js       # Moteur des 9 formats d'exercices et remédiation
-│   │   ├── academyProgress.js        # Progression adaptative persistante et maîtrise par compétence
-│   │   ├── curriculumData.js         # Parcours B (12 chapitres VBA d'origine préservés)
-│   │   ├── excelAnalyzer.js          # Analyse locale XLSX/XLSM/CSV + incohérences & plages nommées
-│   │   ├── excelCurriculumData.js    # Parcours A (5 niveaux, 15 chapitres Maîtriser Excel)
-│   │   ├── exportService.js          # Exports .bas, .osts, .txt, kit .xlsx et documentation imprimable
-│   │   ├── naturalLanguageEngine.js  # Moteur sémantique local + décomposition & reformulation
-│   │   ├── templatesLibrary.js       # Scénarios professionnels classés sur 7 domaines métier
-│   │   ├── trainingWorkbook.js       # Classeurs NovaTech (départ 4 onglets + complet 7 onglets)
-│   │   └── vbaCurriculumEnrichment.js# Enrichissement 12 sections + 12 modules complémentaires VBA
-│   ├── styles/                       # tokens.css, base.css, layout.css, components.css
-│   ├── ui/                           # Vues modulaires (Académie, Exercices, Assistant, Guidé, Workflow, Audit, Analyseur, Scénarios, Créations, Résultat)
-│   └── main.js                       # Point d'entrée, navigation et recherche globale unifiée
-├── tests/studio.test.mjs             # Suite de tests automatisés (node --test)
+│   │   ├── academyExercises.js        # Moteur des 9 formats d'exercices et remédiation
+│   │   ├── academyProgress.js         # Progression adaptative persistante et maîtrise par compétence
+│   │   ├── curriculumData.js          # Parcours B (12 chapitres VBA d'origine préservés)
+│   │   ├── excelAnalyzer.js           # Analyse locale XLSX/XLSM/CSV + incohérences & plages nommées
+│   │   ├── excelCurriculumData.js     # Parcours A (5 niveaux, 15 chapitres Maîtriser Excel)
+│   │   ├── exportService.js           # Exports .bas, .osts, .txt, kit .xlsx et documentation imprimable
+│   │   ├── naturalLanguageEngine.js   # Moteur sémantique local + décomposition & reformulation
+│   │   ├── templatesLibrary.js        # Scénarios professionnels classés sur 7 domaines métier
+│   │   ├── trainingWorkbook.js        # Classeurs NovaTech (départ 4 onglets + complet 7 onglets)
+│   │   └── vbaCurriculumEnrichment.js # Enrichissement 12 sections + 12 modules complémentaires VBA
+│   ├── styles/                        # tokens.css, base.css, layout.css, components.css
+│   ├── ui/
+│   │   ├── analyzerView.js            # Vue Analyseur Excel
+│   │   ├── auditorView.js             # Vue Audit & Correction VBA (avec diff)
+│   │   ├── catalogView.js             # Navigation du catalogue (12 catégories)
+│   │   ├── exerciseWidget.js          # Composant des 9 types d'exercices interactifs
+│   │   ├── formEngine.js              # Formulaires dynamiques auto-alimentés par le classeur analysé
+│   │   ├── freeView.js                # Mode Assistant (langage naturel + reformulation + contexte)
+│   │   ├── guidedView.js              # Mode Rapide (génération guidée par formulaire)
+│   │   ├── historyView.js             # Mes créations, favoris, versions et comparateur
+│   │   ├── homeView.js                # Accueil et accès rapides
+│   │   ├── libraryView.js             # Bibliothèque de scénarios (7 domaines métier)
+│   │   ├── resultPanel.js             # Panneau de résultat, cycle de validation, commentaires et exports
+│   │   ├── tutorialView.js            # Académie Excel & VBA + Tableau de bord adaptatif
+│   │   └── workflowView.js            # Compositeur multi-opérations
+│   └── main.js                        # Point d'entrée, navigation et recherche globale unifiée
+├── tests/studio.test.mjs              # Suite de tests automatisés (node --test)
 ├── index.html
 ├── package.json
 └── vite.config.js
@@ -132,7 +170,7 @@ excel-macro-studio/
 
 ---
 
-## 🚀 Installation et développement local
+## 🚀 Installation, tests et déploiement
 
 ```bash
 # 1. Cloner le dépôt
@@ -150,7 +188,15 @@ npm test
 
 # 5. Construire le bundle de production dans dist/
 npm run build
+
+# 6. Prévisualiser le build de production localement
+npm run preview
 ```
+
+### Déploiement continu (GitHub Pages)
+Le workflow [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) exécute automatiquement `npm ci`, `npm test`, `npm run build` et déploie `dist/` sur GitHub Pages à chaque push sur `main` ou `master`.
+
+Application en ligne : **https://matthiasmaj.github.io/excel-macro-studio/**
 
 ### Stack technique
 * **JavaScript ES Modules** (Vanilla JS modulaire, architecture client sans dépendance serveur)
