@@ -17,6 +17,8 @@ import { TUTORIAL_CHAPTERS } from '../src/ui/tutorialView.js';
 import { CURRICULUM_LEVELS, CURRICULUM_CHAPTERS } from '../src/services/curriculumData.js';
 import { EXCEL_CURRICULUM_LEVELS, EXCEL_CURRICULUM_CHAPTERS } from '../src/services/excelCurriculumData.js';
 import { getEnrichedVbaChapters } from '../src/services/vbaCurriculumEnrichment.js';
+import { EXCEL_PEDAGOGY_COACH } from '../src/services/excelPedagogyCoach.js';
+import { VBA_PEDAGOGY_COACH } from '../src/services/vbaPedagogyCoach.js';
 import { validateExerciseAnswer, EXERCISE_TYPE_LABELS } from '../src/services/academyExercises.js';
 import {
   recordExerciseAttempt,
@@ -608,5 +610,44 @@ test('Situations professionnelles (6 métiers), Constructeur ET+OU & Analyseur p
   assert.ok(suggestedNames.includes('MOYENNE'));
   assert.ok(suggestedNames.includes('SOMME.SI'));
   assert.ok(suggestedNames.includes('SOMME.SI.ENS'));
+});
+
+test('Contrôle qualité pédagogique : les 27 leçons (15 Excel + 12 VBA) possèdent introduction, transitions, démo détaillée et briefs uniques', () => {
+  const seenIntros = new Set();
+
+  for (const ch of EXCEL_CURRICULUM_CHAPTERS) {
+    const c = EXCEL_PEDAGOGY_COACH[ch.id];
+    assert.ok(c, `Coaching manquant pour chapitre Excel : ${ch.id}`);
+    assert.ok(c.intro?.paragraphs?.length >= 2);
+    const introJoined = c.intro.paragraphs.join(' ');
+    assert.ok(introJoined.length >= 220, `Introduction trop courte pour ${ch.id}`);
+    assert.ok(!seenIntros.has(introJoined), `Introduction dupliquée détectée sur ${ch.id}`);
+    seenIntros.add(introJoined);
+    assert.ok(c.intro.whatYouWillLearn?.length >= 2 && c.intro.concreteOutcome?.length > 15);
+    assert.ok(c.transitions?.toTheory && c.transitions?.toDemo && c.transitions?.toExercises && c.transitions?.toPractice);
+    assert.ok(c.demoWalkthrough?.goal && c.demoWalkthrough?.steps?.length >= 3 && c.demoWalkthrough?.ifValuesChange && c.demoWalkthrough?.keyTakeaway);
+    assert.ok(c.exerciseBrief?.guided?.mobilize && c.exerciseBrief?.autonomous?.mobilize);
+  }
+
+  for (const ch of getEnrichedVbaChapters()) {
+    const c = VBA_PEDAGOGY_COACH[ch.id];
+    assert.ok(c, `Coaching manquant pour chapitre VBA : ${ch.id}`);
+    assert.ok(c.intro?.paragraphs?.length >= 2);
+    const introJoined = c.intro.paragraphs.join(' ');
+    assert.ok(introJoined.length >= 220, `Introduction trop courte pour ${ch.id}`);
+    assert.ok(!seenIntros.has(introJoined), `Introduction dupliquée détectée sur ${ch.id}`);
+    seenIntros.add(introJoined);
+    assert.ok(c.intro.whatYouWillLearn?.length >= 2 && c.intro.concreteOutcome?.length > 15);
+    assert.ok(c.transitions?.toTheory && c.transitions?.toDemo && c.transitions?.toExercises && c.transitions?.toPractice);
+    assert.ok(
+      c.demoWalkthrough?.goal &&
+        c.demoWalkthrough?.steps?.length >= 3 &&
+        c.demoWalkthrough?.lineByLineGuide?.length >= 3 &&
+        c.demoWalkthrough?.whatHappensAtRuntime &&
+        c.demoWalkthrough?.keyTakeaway
+    );
+    assert.ok(c.exerciseBrief?.guided?.mobilize && c.exerciseBrief?.autonomous?.mobilize);
+    assert.ok(ch.demonstration.steps.length >= 3, `Etapes de démonstration non branchées sur ${ch.id}`);
+  }
 });
 

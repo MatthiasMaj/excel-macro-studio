@@ -6,6 +6,7 @@
  */
 
 import { CURRICULUM_LEVELS, CURRICULUM_CHAPTERS } from './curriculumData.js';
+import { VBA_PEDAGOGY_COACH } from './vbaPedagogyCoach.js';
 
 const VBA_CHAPTER_ENRICHMENT = {
   ch01_premiers_pas: {
@@ -709,6 +710,7 @@ End Sub`
 export function getEnrichedVbaChapters() {
   return CURRICULUM_CHAPTERS.map((ch) => {
     const extra = VBA_CHAPTER_ENRICHMENT[ch.id] || {};
+    const coach = VBA_PEDAGOGY_COACH[ch.id] || {};
     return {
       ...ch,
       trackId: 'vba',
@@ -724,7 +726,7 @@ export function getEnrichedVbaChapters() {
       demonstration: {
         title: `Exemple VBA commenté — Chapitre ${ch.number}`,
         language: 'vba',
-        steps: [
+        steps: coach.demoWalkthrough?.steps || [
           'Lisez attentivement les commentaires commençant par une apostrophe (\') au-dessus de chaque ligne.',
           'Repérez les déclarations de variables (Dim) et les objets Excel manipulés.'
         ],

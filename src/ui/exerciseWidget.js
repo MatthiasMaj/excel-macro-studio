@@ -10,6 +10,7 @@ export function mountExerciseWidget(container, {
   exercise,
   heading = 'Exercice interactif',
   showGuidance = true,
+  brief = null,
   stateStore,
   onAttempt
 }) {
@@ -196,11 +197,19 @@ export function mountExerciseWidget(container, {
           .join('')}</ul>`
       : '';
 
+    const guidanceCoach =
+      exercise.hints?.[0] ||
+      exercise.guidance ||
+      fb?.explanation ||
+      exercise.explanation ||
+      '';
+
     const fbHtml = fb
       ? `<div class="alert-banner ${fb.ok ? 'alert-success' : 'alert-warning'}" role="status">
-           <strong>${fb.ok ? 'Réussi !' : fb.incomplete ? 'Réponse incomplète :' : 'Pas encore exact :'}</strong>
+           <strong>${fb.ok ? 'Réussi ! Pourquoi ta réponse est correcte :' : fb.incomplete ? 'Réponse incomplète :' : 'Pas encore exact — analysons ton raisonnement :'}</strong>
            <span>${escapeHtml(fb.message)}</span>
-           ${!fb.incomplete && fb.ok && fb.explanation ? `<span class="field-hint">${escapeHtml(fb.explanation)}</span>` : ''}
+           ${!fb.incomplete && fb.ok && (fb.explanation || exercise.explanation) ? `<span class="field-hint">${escapeHtml(fb.explanation || exercise.explanation)}</span>` : ''}
+           ${!fb.ok && !fb.incomplete && guidanceCoach ? `<span><strong>Piste du formateur :</strong> ${escapeHtml(guidanceCoach)}</span>` : ''}
            ${!fb.ok && !fb.incomplete && mistakesList ? `<div><strong style="font-size:0.82rem">Erreurs fréquentes à éviter :</strong>${mistakesList}</div>` : ''}
          </div>`
       : '';
@@ -227,6 +236,19 @@ export function mountExerciseWidget(container, {
             ${exercise.objective ? `<p class="field-hint" style="margin:0.2rem 0 0"><strong>Objectif :</strong> ${escapeHtml(exercise.objective)}</p>` : ''}
           </div>
         </div>
+
+        ${
+          brief
+            ? `<div class="exercise-brief-box stack-sm">
+                 <strong>Avant de te lancer :</strong>
+                 <ul style="margin:0.2rem 0 0;padding-left:1.15rem;font-size:0.86rem">
+                   ${brief.mobilize ? `<li><strong>À mobiliser :</strong> ${escapeHtml(brief.mobilize)}</li>` : ''}
+                   ${brief.observe ? `<li><strong>Ce qu'il faut observer :</strong> ${escapeHtml(brief.observe)}</li>` : ''}
+                   ${brief.expected ? `<li><strong>Objectif recherché :</strong> ${escapeHtml(brief.expected)}</li>` : ''}
+                 </ul>
+               </div>`
+            : ''
+        }
 
         <p style="margin:0">${escapeHtml(exercise.instruction)}</p>
 

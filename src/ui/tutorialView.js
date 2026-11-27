@@ -5,6 +5,8 @@ import { buildBasFileContent } from '../services/exportService.js';
 import { CURRICULUM_CHAPTERS } from '../services/curriculumData.js';
 import { EXCEL_CURRICULUM_LEVELS, EXCEL_CURRICULUM_CHAPTERS } from '../services/excelCurriculumData.js';
 import { VBA_CURRICULUM_LEVELS, getEnrichedVbaChapters } from '../services/vbaCurriculumEnrichment.js';
+import { EXCEL_PEDAGOGY_COACH } from '../services/excelPedagogyCoach.js';
+import { VBA_PEDAGOGY_COACH } from '../services/vbaPedagogyCoach.js';
 import { REMEDIATION_EXERCISES } from '../services/academyExercises.js';
 import {
   loadAcademyProgress,
@@ -195,6 +197,54 @@ export function renderTutorialView(container, { navigate, onNotify }) {
 
     const compat = ch.furtherReading?.compatibility || {};
     const compMod = ch.furtherReading?.complementaryModule;
+    const coach = (activeTrack === 'excel' ? EXCEL_PEDAGOGY_COACH[ch.id] : VBA_PEDAGOGY_COACH[ch.id]) || null;
+
+    const trainerIntroHtml = coach?.intro
+      ? `<section class="trainer-intro-card stack-sm" aria-label="Introduction du formateur">
+           <div class="chips-row">
+             <span class="badge badge-success">Mot du formateur · Comprendre avant de commencer</span>
+           </div>
+           ${coach.intro.paragraphs.map((p) => `<p style="margin:0;line-height:1.6">${escapeHtml(p)}</p>`).join('')}
+           <div class="before-after-grid" style="margin-top:0.25rem">
+             <div class="panel" style="padding:0.75rem 1rem;background:var(--surface)">
+               <strong>Ce que tu vas apprendre ici :</strong>
+               <ul style="margin:0.35rem 0 0;padding-left:1.15rem">
+                 ${coach.intro.whatYouWillLearn.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}
+               </ul>
+             </div>
+             <div class="panel" style="padding:0.75rem 1rem;background:var(--surface)">
+               <strong>Résultat concret à la fin :</strong>
+               <p style="margin:0.35rem 0 0">${escapeHtml(coach.intro.concreteOutcome)}</p>
+             </div>
+           </div>
+         </section>`
+      : '';
+
+    const transitionBanner = (txt) =>
+      txt ? `<p class="lesson-transition">${escapeHtml(txt)}</p>` : '';
+
+    const demoExtrasHtml = coach?.demoWalkthrough
+      ? `<div class="stack-sm">
+           ${coach.demoWalkthrough.whatToObserve ? `<div class="alert-banner alert-info"><strong>Ce que tu dois observer :</strong> <span>${escapeHtml(coach.demoWalkthrough.whatToObserve)}</span></div>` : ''}
+           ${
+             coach.demoWalkthrough.lineByLineGuide?.length
+               ? `<div class="data-table-wrap">
+                    <table class="data-table">
+                      <thead><tr><th>Instruction / Mot-clé VBA</th><th>Explication simple du formateur</th></tr></thead>
+                      <tbody>
+                        ${coach.demoWalkthrough.lineByLineGuide
+                          .map((g) => `<tr><td><code>${escapeHtml(g.token)}</code></td><td>${escapeHtml(g.meaning)}</td></tr>`)
+                          .join('')}
+                      </tbody>
+                    </table>
+                  </div>`
+               : ''
+           }
+           ${coach.demoWalkthrough.ifValuesChange ? `<div class="panel" style="padding:0.75rem 1rem;background:var(--surface-subtle)"><strong>Si les valeurs changent :</strong> <span>${escapeHtml(coach.demoWalkthrough.ifValuesChange)}</span></div>` : ''}
+           ${coach.demoWalkthrough.whatHappensAtRuntime ? `<div class="panel" style="padding:0.75rem 1rem;background:var(--surface-subtle)"><strong>Ce qui se passe dans Excel à l'exécution :</strong> <span>${escapeHtml(coach.demoWalkthrough.whatHappensAtRuntime)}</span></div>` : ''}
+           ${coach.demoWalkthrough.keyTakeaway ? `<div class="demo-takeaway-box"><strong>À retenir avant de passer aux exercices :</strong> <span>${escapeHtml(coach.demoWalkthrough.keyTakeaway)}</span></div>` : ''}
+         </div>`
+      : '';
 
     const dashboardHtml = showDashboard
       ? `
@@ -365,6 +415,8 @@ export function renderTutorialView(container, { navigate, onNotify }) {
 
             <p class="page-subtitle">${escapeHtml(ch.summary)}</p>
 
+            ${trainerIntroHtml}
+
             <!-- 1. Objectif pédagogique · 2. Mise en situation · 3. Prérequis -->
             <section class="stack-sm">
               <div class="before-after-grid">
@@ -382,6 +434,8 @@ export function renderTutorialView(container, { navigate, onNotify }) {
                 <span>${escapeHtml((ch.prerequisites || []).join(' · '))}</span>
               </div>
             </section>
+
+            ${transitionBanner(coach?.transitions?.toTheory)}
 
             <!-- 4. Explication théorique -->
             <section class="stack-sm">
@@ -413,10 +467,12 @@ export function renderTutorialView(container, { navigate, onNotify }) {
             </section>
 
             <!-- 6. Démonstration commentée -->
+            ${transitionBanner(coach?.transitions?.toDemo)}
             <section class="stack-sm">
               <h3>6. Démonstration — ${escapeHtml(ch.demonstration.title)}</h3>
+              ${coach?.demoWalkthrough?.goal ? `<p class="field-hint" style="margin:0"><strong>Ce que nous voulons accomplir :</strong> ${escapeHtml(coach.demoWalkthrough.goal)}</p>` : ''}
               <ol class="tutorial-step-list">
-                ${ch.demonstration.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}
+                ${(coach?.demoWalkthrough?.steps || ch.demonstration.steps).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}
               </ol>
               <div class="vba-viewer">
                 <div class="vba-viewer-toolbar">
@@ -425,7 +481,10 @@ export function renderTutorialView(container, { navigate, onNotify }) {
                 </div>
                 <div class="vba-code-scroll" tabindex="0">${highlightVbaToHtml(ch.demonstration.formulaOrCode)}</div>
               </div>
+              ${demoExtrasHtml}
             </section>
+
+            ${transitionBanner(coach?.transitions?.toExercises)}
 
             <!-- 7. Exercice guidé -->
             <div id="ac-guided-mount"></div>
@@ -443,6 +502,8 @@ export function renderTutorialView(container, { navigate, onNotify }) {
                    <div id="ac-remediation-mount"></div>`
                 : ''
             }
+
+            ${transitionBanner(coach?.transitions?.toPractice)}
 
             <!-- 9. Application pratique NovaTech -->
             <section class="panel stack-sm" style="background:var(--surface-subtle)">
@@ -567,6 +628,7 @@ export function renderTutorialView(container, { navigate, onNotify }) {
         exercise: ch.guidedExercise,
         heading: '7. Exercice guidé (avec méthode)',
         showGuidance: true,
+        brief: coach?.exerciseBrief?.guided || null,
         stateStore: exerciseStores,
         onAttempt: (ok) => {
           recordExerciseAttempt(ch.id, 'guided', ok, ch.competency);
@@ -580,6 +642,7 @@ export function renderTutorialView(container, { navigate, onNotify }) {
         exercise: ch.autonomousExercise,
         heading: '8. Exercice autonome (sans assistance directe)',
         showGuidance: false,
+        brief: coach?.exerciseBrief?.autonomous || null,
         stateStore: exerciseStores,
         onAttempt: (ok) => {
           recordExerciseAttempt(ch.id, 'autonomous', ok, ch.competency);
