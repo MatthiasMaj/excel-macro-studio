@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { translateEnglishFormulaToFrench, analyzeAndTranslateFormula } from '../engine/excelFormulaEngine.js';
 
 function colLetterFromIndex(idx) {
   let n = idx + 1;
@@ -140,6 +141,7 @@ function detectFormulaDetails(ws, currentSheetName, allSheetNames) {
   const refs = new Set();
   const formulaSamples = [];
   const formulaErrors = [];
+  const detectedFunctions = new Set();
   let formulaCount = 0;
 
   for (const [addr, cell] of Object.entries(ws)) {
@@ -150,8 +152,11 @@ function detectFormulaDetails(ws, currentSheetName, allSheetNames) {
     if (!cell.f) continue;
     formulaCount++;
     const f = String(cell.f);
-    if (formulaSamples.length < 10) {
-      formulaSamples.push({ cell: addr, formula: `=${f}` });
+    const fr = translateEnglishFormulaToFrench(`=${f}`);
+    const parsedFns = fr.slice(1).match(/\b[A-ZÀ-Ÿ][A-ZÀ-Ÿ0-9.]*(?=\()/gi) || [];
+    for (const fn of parsedFns) detectedFunctions.add(fn.toUpperCase());
+    if (formulaSamples.length < 25) {
+      formulaSamples.push({ cell: addr, formula: `=${f}`, frenchFormula: fr });
     }
     for (const other of allSheetNames) {
       if (other === currentSheetName) continue;
@@ -162,7 +167,7 @@ function detectFormulaDetails(ws, currentSheetName, allSheetNames) {
       }
     }
   }
-  return { refs: [...refs], formulaCount, formulaSamples, formulaErrors };
+  return { refs: [...refs], formulaCount, formulaSamples, formulaErrors, detectedFunctions: [...detectedFunctions] };
 }
 
 function detectMergedCells(ws) {
@@ -330,6 +335,7 @@ export function analyzeWorkbookBuffer(arrayBuffer, fileName = 'Classeur.xlsx') {
       mergedCells,
       formulaCount: fDetails.formulaCount,
       formulaSamples: fDetails.formulaSamples,
+      detectedFunctions: fDetails.detectedFunctions,
       formulaErrors: fDetails.formulaErrors,
       inconsistencies,
       formulaTargets: fDetails.refs
@@ -411,5 +417,165 @@ export function createDemoWorkbookContext() {
 
   const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   return analyzeWorkbookBuffer(buf, 'Classeur_Demo_Gestion.xlsx');
+}
+
+const EXCEL_ERROR_GUIDES = {
+  '#DIV/0!': 'Division par zéro : protégez le calcul avec =SIERREUR(votre_calcul; 0).',
+  '#N/A': 'Valeur introuvable dans une recherche : utilisez =RECHERCHEX(...;"Non trouvé") ou =SIERREUR(...;"Absent").',
+  '#REF!': 'Cellule ou colonne supprimée après création de la formule : rétablissez la plage cible.',
+  '#VALEUR!': 'Type incompatible (texte utilisé dans un calcul mathématique ou mauvais séparateur).',
+  '#NOM?': 'Nom de fonction inconnu (souvent fonction anglaise non traduite ou guillemets oubliés autour d\'un texte).'
+};
+
+/**
+ * Construit un diagnostic pédagogique complet et 100 % local pour une feuille d'un classeur importé :
+ * - Traduction & explication des formules existantes
+ * - Explication des erreurs Excel repérées
+ * - Fonctions Excel suggérées d'après les types de colonnes
+ * - Pistes d'automatisation VBA associées
+ */
+export function buildPedagogicalWorkbookReport(workbookContext, sheetIndex = 0) {
+  if (!workbookContext?.sheets?.length) return null;
+  const sheet = workbookContext.sheets[sheetIndex] || workbookContext.sheets[0];
+  const endRow = Math.max(2, sheet.rowCount || 20);
+  const startRow = (sheet.headerRow || 1) + 1;
+
+  const formulaExplanations = (sheet.formulaSamples || []).map((sample) => {
+    const frenchFormula = sample.frenchFormula || translateEnglishFormulaToFrench(sample.formula);
+    const analysis = analyzeAndTranslateFormula(frenchFormula);
+    return {
+      cell: sample.cell,
+      rawFormula: sample.formula,
+      frenchFormula,
+      functionsUsed: analysis.functionsUsed || [],
+      summary: analysis.beginnerSummary,
+      simplifications: analysis.simplifications || []
+    };
+  });
+
+  const errorDiagnostics = (sheet.formulaErrors || []).map((err) => {
+    const code = String(err.value || '').toUpperCase();
+    return {
+      cell: err.cell,
+      code: err.value,
+      advice: EXCEL_ERROR_GUIDES[code] || 'Vérifiez les cellules sources référencées et protégez la formule avec SIERREUR().'
+    };
+  });
+
+  const cols = sheet.columns || [];
+  const numCols = cols.filter((c) => c.inferredType === 'nombre' || c.inferredType === 'monétaire/%');
+  const catCols = cols.filter((c) => c.inferredType === 'texte' && !/^code_|^id_/i.test(c.name));
+  const dateCols = cols.filter((c) => c.inferredType === 'date');
+
+  const suggestedFunctions = [];
+  if (numCols.length >= 1) {
+    const numC = numCols[0];
+    suggestedFunctions.push({
+      fn: 'SOMME',
+      formulaId: 'somme',
+      reason: `Colonne numérique détectée « ${numC.name} » (${numC.letter}) : totaliser automatiquement les valeurs.`,
+      example: `=SOMME(${numC.letter}${startRow}:${numC.letter}${endRow})`
+    });
+    suggestedFunctions.push({
+      fn: 'MOYENNE',
+      formulaId: 'moyenne',
+      reason: `Mesurer la moyenne de « ${numC.name} » pour situer chaque ligne par rapport à la normale.`,
+      example: `=MOYENNE(${numC.letter}${startRow}:${numC.letter}${endRow})`
+    });
+  }
+
+  if (numCols.length >= 1 && catCols.length >= 1) {
+    const numC = numCols[0];
+    const cat1 = catCols[0];
+    const sampleCrit = cat1.sampleValues?.[0] || 'Catégorie';
+    suggestedFunctions.push({
+      fn: 'SOMME.SI',
+      formulaId: 'somme_si',
+      reason: `Totaliser « ${numC.name} » par valeur de « ${cat1.name} » (ex. « ${sampleCrit} »).`,
+      example: `=SOMME.SI(${cat1.letter}${startRow}:${cat1.letter}${endRow};"${sampleCrit}";${numC.letter}${startRow}:${numC.letter}${endRow})`
+    });
+    if (catCols.length >= 2) {
+      const cat2 = catCols[1];
+      const crit2 = cat2.sampleValues?.[0] || 'Validé';
+      suggestedFunctions.push({
+        fn: 'SOMME.SI.ENS',
+        formulaId: 'somme_si_ens',
+        reason: `Croiser deux critères (« ${cat1.name} » ET « ${cat2.name} ») pour totaliser « ${numC.name} ».`,
+        example: `=SOMME.SI.ENS(${numC.letter}${startRow}:${numC.letter}${endRow};${cat1.letter}${startRow}:${cat1.letter}${endRow};"${sampleCrit}";${cat2.letter}${startRow}:${cat2.letter}${endRow};"${crit2}")`
+      });
+    }
+  }
+
+  if (catCols.length >= 1) {
+    const cat1 = catCols[0];
+    suggestedFunctions.push({
+      fn: 'NB.SI',
+      formulaId: 'nb_si',
+      reason: `Compter le nombre d'occurrences de chaque valeur dans « ${cat1.name} ».`,
+      example: `=NB.SI(${cat1.letter}${startRow}:${cat1.letter}${endRow};"${cat1.sampleValues?.[0] || 'OK'}")`
+    });
+  }
+
+  if (dateCols.length >= 1) {
+    const dCol = dateCols[0];
+    suggestedFunctions.push({
+      fn: 'SI + AUJOURDHUI()',
+      formulaId: 'si',
+      reason: `Colonne date détectée « ${dCol.name} » (${dCol.letter}) : alerter automatiquement sur les échéances dépassées.`,
+      example: `=SI(${dCol.letter}${startRow}<AUJOURDHUI();"En retard";"À temps")`
+    });
+  }
+
+  const sheetRels = (workbookContext.relations || []).filter(
+    (r) => r.type === 'shared_key' && (r.fromSheet === sheet.name || r.toSheet === sheet.name)
+  );
+  if (sheetRels.length > 0) {
+    const rel = sheetRels[0];
+    const otherSheet = rel.fromSheet === sheet.name ? rel.toSheet : rel.fromSheet;
+    suggestedFunctions.push({
+      fn: 'RECHERCHEX',
+      formulaId: 'recherchex',
+      reason: `Clé partagée « ${rel.columnName} » repérée avec l'onglet « ${otherSheet} » : rapatrier des colonnes sans copier-coller manuel.`,
+      example: `=RECHERCHEX(A${startRow};${otherSheet}!A2:A100;${otherSheet}!B2:B100;"Non trouvé")`
+    });
+  }
+
+  const vbaAutomationIdeas = [];
+  if (sheet.mergedCells?.length > 0) {
+    vbaAutomationIdeas.push({
+      opId: 'fmt_unmerge_fill',
+      label: 'Défusionner et recopier les valeurs vers le bas (macro VBA)',
+      reason: `${sheet.mergedCells.length} fusion(s) détectée(s) gênant les filtres et TCD.`
+    });
+  }
+  if ((sheet.inconsistencies || []).some((i) => /ligne.*vide/i.test(i))) {
+    vbaAutomationIdeas.push({
+      opId: 'cells_delete_empty',
+      label: 'Supprimer automatiquement les lignes vides (macro VBA)',
+      reason: 'Des lignes vides cassent la sélection continue Ctrl+A et AutoFilter.'
+    });
+  }
+  if (sheetRels.length > 0) {
+    vbaAutomationIdeas.push({
+      opId: 'sheet_compare_two',
+      label: `Rapprocher « ${sheet.name} » avec « ${sheetRels[0].fromSheet === sheet.name ? sheetRels[0].toSheet : sheetRels[0].fromSheet} »`,
+      reason: `Exploite la colonne clé commune « ${sheetRels[0].columnName} ».`
+    });
+  }
+  vbaAutomationIdeas.push({
+    opId: 'cells_remove_duplicates',
+    label: 'Nettoyer les doublons et mettre en forme le tableau',
+    reason: 'Automatisation en 1 clic avant export ou TCD.'
+  });
+
+  return {
+    sheetName: sheet.name,
+    formulaCount: sheet.formulaCount || 0,
+    detectedFunctions: sheet.detectedFunctions || [],
+    formulaExplanations,
+    errorDiagnostics,
+    suggestedFunctions,
+    vbaAutomationIdeas
+  };
 }
 

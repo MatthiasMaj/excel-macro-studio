@@ -5,7 +5,8 @@ import {
   buildGridFromTable,
   evaluateFrenchFormula,
   analyzeAndTranslateFormula,
-  colNumberToLetters
+  colNumberToLetters,
+  SUPPORTED_FORMULA_FUNCTIONS
 } from '../engine/excelFormulaEngine.js';
 import {
   FORMULA_LEVELS,
@@ -17,12 +18,24 @@ import {
   EXCEL_OPERATORS,
   DEFAULT_BUILDER_STATE,
   getBuilderTemplates,
-  buildVisualFormula
+  buildVisualFormula,
+  moveBuilderItem
 } from '../services/formulaBuilderConfig.js';
+import {
+  LAB_PRESETS,
+  evaluateLabSheet,
+  fillDownFormula
+} from '../services/formulaLabEngine.js';
+import {
+  PRO_SITUATIONS,
+  validateSituationAttempt
+} from '../services/proSituationsData.js';
 import {
   loadFormulaProgress,
   recordFormulaExercise,
   toggleFormulaMastered,
+  recordSituationSolved,
+  setLastFormulaVisited,
   recordChallengeOutcome,
   resetFormulaProgress,
   pickChallenge,
@@ -42,10 +55,28 @@ function parseUserCellValue(str) {
 
 export function renderFormulasView(container, { navigate, onNotify }) {
   const target = getState().formulaTarget;
-  let activeSubTab = target?.subTab || 'lessons'; // 'lessons' | 'builder' | 'analyzer' | 'challenge' | 'bridge'
+  const savedProgress = loadFormulaProgress();
+  let activeSubTab = target?.subTab || 'lab'; // 'lab' | 'lessons' | 'builder' | 'situations' | 'analyzer' | 'challenge' | 'bridge'
   let activeLevel = 'ALL';
   let searchQuery = '';
-  let activeFormulaId = target?.formulaId || getAllFormulas()[0].id;
+  let activeFormulaId = target?.formulaId || savedProgress.lastVisited?.formulaId || getAllFormulas()[0].id;
+
+  // États du Laboratoire tableur
+  const LAB_ROWS = 8;
+  const LAB_COLS = 6;
+  let activePresetId = LAB_PRESETS[0].id;
+  let labCells = { ...LAB_PRESETS[0].cells };
+  let activeLabCell = LAB_PRESETS[0].activeCell || 'C2';
+  let labBarDraft = String(labCells[activeLabCell] ?? '');
+
+  // États Situations professionnelles
+  let activeSituationId = target?.situationId || PRO_SITUATIONS[0].id;
+  let situationInputs = {};
+  let situationFeedbacks = {};
+  let situationHintCounts = {};
+
+  // État Passerelle interactive
+  let bridgeFormulaInput = '=SI(A1>10;"Oui";"Non")';
 
   if (target) {
     setState({ formulaTarget: null }, 'formulaTarget');
@@ -57,9 +88,360 @@ export function renderFormulasView(container, { navigate, onNotify }) {
 
   let builderTemplateId = 'si';
   const builderConfigs = JSON.parse(JSON.stringify(DEFAULT_BUILDER_STATE));
+  let builderSampleRows = null;
 
-  let analyzerFormula = '=SI(ET(B2>=7;C2="Validé");"Conforme";"À vérifier")';
+  let analyzerFormula = target?.formula || '=SI(ET(B2>=7;C2="Validé");"Conforme";"À vérifier")';
   let analyzerCells = { B2: 8, C2: 'Validé', A2: 12 };
+
+  const loadTableIntoLab = (title, headers = [], rows = [], extraFormulaCell = null, extraFormula = '') => {
+    const next = {};
+    headers.forEach((h, cIdx) => {
+      if (cIdx < LAB_COLS) next[`${colNumberToLetters(cIdx + 1)}1`] = h;
+    });
+    rows.forEach((rArr, rIdx) => {
+      if (rIdx + 2 <= LAB_ROWS) {
+        rArr.forEach((val, cIdx) => {
+          if (cIdx < LAB_COLS) next[`${colNumberToLetters(cIdx + 1)}${rIdx + 2}`] = val;
+        });
+      }
+    });
+    if (extraFormulaCell && extraFormula) {
+      next[extraFormulaCell] = extraFormula;
+      activeLabCell = extraFormulaCell;
+    } else {
+      activeLabCell = 'C2';
+    }
+    labCells = next;
+    labBarDraft = String(labCells[activeLabCell] ?? '');
+    activeSubTab = 'lab';
+    onNotify?.(`Jeu de données « ${title} » ouvert dans le Laboratoire.`, 'info');
+    paintShell();
+  };
+
+  const paintLabTab = (mount) => {
+    const evaluated = evaluateLabSheet(labCells, LAB_ROWS, LAB_COLS);
+    const activeCellData = evaluated.cells[activeLabCell] || { raw: '', isFormula: false, displayValue: '', ok: true };
+    const isFormula = String(labBarDraft).trim().startsWith('=');
+    const analysis = isFormula ? analyzeAndTranslateFormula(labBarDraft, evaluated.cells) : null;
+
+    const headerCells = Array.from({ length: LAB_COLS }, (_, cIdx) => {
+      const col = colNumberToLetters(cIdx + 1);
+      return `<th>${col}</th>`;
+    }).join('');
+
+    const bodyRows = Array.from({ length: LAB_ROWS }, (_, rOffset) => {
+      const r = rOffset + 1;
+      const tds = Array.from({ length: LAB_COLS }, (__, cOffset) => {
+        const addr = `${colNumberToLetters(cOffset + 1)}${r}`;
+        const cell = evaluated.cells[addr];
+        const isActive = addr === activeLabCell;
+        const valShow = cell?.displayValue ?? '';
+        const errCls = cell && !cell.ok ? 'lab-cell-error' : '';
+        return `
+          <td>
+            <button type="button" class="lab-cell-btn ${isActive ? 'lab-cell-active' : ''} ${errCls}" data-lab-cell="${addr}" title="${cell?.isFormula ? escapeHtml(cell.raw) : ''}">
+              <span>${escapeHtml(valShow)}</span>
+              ${cell?.isFormula ? '<span class="lab-cell-formula-tag">fx</span>' : ''}
+            </button>
+          </td>
+        `;
+      }).join('');
+      return `<tr><th class="row-num">${r}</th>${tds}</tr>`;
+    }).join('');
+
+    mount.innerHTML = `
+      <div class="stack-md">
+        <section class="panel stack-md">
+          <div class="panel-header" style="margin-bottom:0">
+            <div>
+              <h2 class="panel-title">Laboratoire de formules Excel (tableur interactif local)</h2>
+              <p class="field-hint">Cliquez sur n'importe quelle cellule, modifiez une valeur ou saisissez une formule (séparateur <code>;</code>), puis observez le recalcul et l'explication en temps réel.</p>
+            </div>
+            <div class="chips-row">
+              <select id="lab-preset-sel" class="select-compact" aria-label="Charger un jeu de données exemple">
+                ${LAB_PRESETS.map((p) => `<option value="${escapeHtml(p.id)}" ${p.id === activePresetId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
+              </select>
+              <button type="button" class="btn-ghost btn-sm" id="lab-reset-btn">Réinitialiser le tableau</button>
+            </div>
+          </div>
+
+          <form class="lab-formula-bar" id="lab-formula-form">
+            <span class="lab-cell-badge" title="Cellule active">${escapeHtml(activeLabCell)}</span>
+            <label for="lab-formula-input" class="visually-hidden">Contenu ou formule de la cellule active</label>
+            <input type="text" id="lab-formula-input" value="${escapeHtml(labBarDraft)}" style="flex:1;min-width:220px;font-family:var(--font-mono,monospace)" placeholder="Saisissez un nombre, un texte ou une formule (=SI(B2>=7;&quot;Conforme&quot;;&quot;À compléter&quot;))">
+            <button type="submit" class="btn-primary btn-sm">Appliquer (Entrée)</button>
+            <button type="button" class="btn-secondary btn-sm" id="lab-fill-down-btn" title="Recopier la formule vers les lignes du dessous en adaptant B2→B3 et en conservant les $">$ Recopier vers le bas</button>
+          </form>
+
+          <div class="data-table-wrap">
+            <table class="data-table excel-grid-table lab-grid-table" aria-label="Grille du laboratoire tableur">
+              <thead>
+                <tr><th class="row-num">#</th>${headerCells}</tr>
+              </thead>
+              <tbody>${bodyRows}</tbody>
+            </table>
+          </div>
+
+          <div class="before-after-grid">
+            <div class="alert-banner ${activeCellData.ok ? 'alert-success' : 'alert-danger'}">
+              <strong>Cellule ${escapeHtml(activeLabCell)} — Résultat affiché : ${escapeHtml(activeCellData.displayValue || '(vide)')}</strong>
+              <span>
+                ${
+                  !activeCellData.ok
+                    ? escapeHtml(activeCellData.error || 'Erreur de calcul')
+                    : analysis
+                      ? escapeHtml(analysis.beginnerSummary)
+                      : 'Valeur saisie directement (cliquez sur C2 pour inspecter ou tester une formule).'
+                }
+              </span>
+            </div>
+
+            <div class="panel" style="padding:0.75rem 1rem;background:var(--surface-subtle)">
+              <strong>Équivalent VBA pour ${escapeHtml(activeLabCell)} :</strong>
+              ${
+                analysis?.vbaBridgeSnippet
+                  ? `<div class="vba-viewer" style="margin-top:0.35rem"><div class="vba-code-scroll" style="max-height:140px">${highlightVbaToHtml(analysis.vbaBridgeSnippet)}</div></div>`
+                  : `<p class="field-hint" style="margin:0.35rem 0 0">Sélectionnez une cellule contenant une formule (=SI, =SOMME...) pour afficher son équivalent VBA.</p>`
+              }
+            </div>
+          </div>
+
+          <details class="advanced-panel">
+            <summary>Fonctions réellement prises en charge par le moteur local (${SUPPORTED_FORMULA_FUNCTIONS.length} fonctions — aucune simulation fictive)</summary>
+            <div class="stack-sm">
+              <p class="field-hint" style="margin:0">Toutes les formules ci-dessous sont calculées réellement en local. Si vous saisissez une fonction non implémentée, le laboratoire affiche explicitement <code>#NON_SUPPORTE!</code> sans simuler de résultat trompeur.</p>
+              <div class="chips-row">
+                ${SUPPORTED_FORMULA_FUNCTIONS.map((fn) => `<span class="badge badge-neutral">${escapeHtml(fn)}</span>`).join('')}
+              </div>
+            </div>
+          </details>
+        </section>
+      </div>
+    `;
+
+    mount.querySelector('#lab-preset-sel')?.addEventListener('change', (e) => {
+      activePresetId = e.target.value;
+      const preset = LAB_PRESETS.find((p) => p.id === activePresetId) || LAB_PRESETS[0];
+      labCells = { ...preset.cells };
+      activeLabCell = preset.activeCell || 'C2';
+      labBarDraft = String(labCells[activeLabCell] ?? '');
+      paintLabTab(mount);
+    });
+
+    mount.querySelector('#lab-reset-btn')?.addEventListener('click', () => {
+      const preset = LAB_PRESETS.find((p) => p.id === activePresetId) || LAB_PRESETS[0];
+      labCells = { ...preset.cells };
+      activeLabCell = preset.activeCell || 'C2';
+      labBarDraft = String(labCells[activeLabCell] ?? '');
+      onNotify?.('Tableau du laboratoire réinitialisé.', 'info');
+      paintLabTab(mount);
+    });
+
+    mount.querySelectorAll('[data-lab-cell]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        activeLabCell = btn.dataset.labCell;
+        labBarDraft = String(labCells[activeLabCell] ?? '');
+        paintLabTab(mount);
+        mount.querySelector('#lab-formula-input')?.focus();
+      });
+    });
+
+    mount.querySelector('#lab-formula-input')?.addEventListener('input', (e) => {
+      labBarDraft = e.target.value;
+    });
+
+    mount.querySelector('#lab-formula-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      labCells[activeLabCell] = labBarDraft;
+      paintLabTab(mount);
+    });
+
+    mount.querySelector('#lab-fill-down-btn')?.addEventListener('click', () => {
+      const val = String(labBarDraft ?? labCells[activeLabCell] ?? '').trim();
+      if (!val.startsWith('=')) {
+        onNotify?.('Placez-vous d\'abord sur une cellule contenant une formule (=...) pour la recopier vers le bas.', 'warning');
+        return;
+      }
+      labCells[activeLabCell] = val;
+      const match = /^([A-Z]+)(\d+)$/.exec(activeLabCell);
+      const rowStart = match ? Number(match[2]) : 2;
+      const endRow = Math.min(LAB_ROWS, Math.max(rowStart + 2, 4));
+      labCells = fillDownFormula(labCells, activeLabCell, endRow);
+      onNotify?.(`Formule recopiée depuis ${activeLabCell} jusqu'à la ligne ${endRow} avec décalage des références relatives.`, 'success');
+      paintLabTab(mount);
+    });
+  };
+
+  const paintSituationsTab = (mount) => {
+    const progress = loadFormulaProgress();
+    const solvedMap = progress.situationsSolved || {};
+    const solvedCount = PRO_SITUATIONS.filter((s) => Boolean(solvedMap[s.id])).length;
+    const sit = PRO_SITUATIONS.find((s) => s.id === activeSituationId) || PRO_SITUATIONS[0];
+    const draft = situationInputs[sit.id] ?? '';
+    const fb = situationFeedbacks[sit.id] || null;
+    const hintsShown = situationHintCounts[sit.id] || 0;
+
+    mount.innerHTML = `
+      <div class="stack-md">
+        <div class="panel tutorial-progress-wrap">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.75rem">
+            <div>
+              <strong>Simulateur de situations professionnelles : ${solvedCount} / ${PRO_SITUATIONS.length} cas résolus</strong>
+              <span class="field-hint" style="margin-left:0.5rem">Entraînement sur des cas d'entreprise réels</span>
+            </div>
+            <div class="chips-row">
+              ${PRO_SITUATIONS.map(
+                (s) => `<button type="button" class="chip-btn ${s.id === sit.id ? 'active' : ''}" data-pick-sit="${escapeHtml(s.id)}">${solvedMap[s.id] ? '✓ ' : ''}${escapeHtml(s.domain)}</button>`
+              ).join('')}
+            </div>
+          </div>
+          <progress class="tutorial-progress" value="${solvedCount}" max="${PRO_SITUATIONS.length}" aria-label="Progression situations professionnelles"></progress>
+        </div>
+
+        <section class="panel stack-md">
+          <div class="panel-header" style="margin-bottom:0">
+            <div>
+              <div class="chips-row" style="margin-bottom:0.25rem">
+                <span class="badge badge-info">${escapeHtml(sit.domain)}</span>
+                <span class="badge badge-neutral">${escapeHtml(sit.difficulty)}</span>
+                ${sit.functions.map((fn) => `<span class="badge badge-neutral">${escapeHtml(fn)}</span>`).join('')}
+                ${solvedMap[sit.id] ? '<span class="badge badge-success">Résolu</span>' : ''}
+              </div>
+              <h2 class="panel-title">${escapeHtml(sit.title)}</h2>
+            </div>
+            <div class="chips-row">
+              <button type="button" class="btn-secondary btn-sm" id="sit-to-lab-btn">Ouvrir ce tableau dans le Laboratoire</button>
+              <button type="button" class="btn-ghost btn-sm" id="sit-reset-btn">Effacer ma saisie</button>
+            </div>
+          </div>
+
+          <div class="before-after-grid">
+            <div class="alert-banner alert-info">
+              <strong>Contexte professionnel</strong>
+              <span>${escapeHtml(sit.context)}</span>
+            </div>
+            <div class="alert-banner alert-success">
+              <strong>Objectif en ${escapeHtml(sit.targetCell)}</strong>
+              <span>${escapeHtml(sit.objective)}</span>
+            </div>
+          </div>
+
+          <div class="data-table-wrap">
+            <table class="data-table excel-grid-table">
+              <thead>
+                <tr><th class="row-num">#</th>${sit.headers.map((h, ci) => `<th>${colNumberToLetters(ci + 1)} · ${escapeHtml(h)}</th>`).join('')}</tr>
+              </thead>
+              <tbody>
+                ${sit.rows
+                  .map(
+                    (row, rIdx) => `<tr><th class="row-num">${rIdx + 2}</th>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`
+                  )
+                  .join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="field">
+            <label for="sit-formula-input">Votre formule Excel pour la cellule ${escapeHtml(sit.targetCell)}</label>
+            <input type="text" id="sit-formula-input" value="${escapeHtml(draft)}" placeholder="Ex : ${escapeHtml(sit.referenceFormula)}" style="font-family:var(--font-mono,monospace)" autocomplete="off">
+          </div>
+
+          <div class="chips-row">
+            <button type="button" class="btn-primary btn-sm" id="sit-verify-btn">Vérifier ma formule</button>
+            ${
+              hintsShown < (sit.hints || []).length
+                ? `<button type="button" class="btn-secondary btn-sm" id="sit-hint-btn">Afficher un indice (${hintsShown}/${sit.hints.length})</button>`
+                : ''
+            }
+          </div>
+
+          ${
+            hintsShown > 0
+              ? `<div class="hint-box">${sit.hints.slice(0, hintsShown).map((h) => `<p style="margin:0"><strong>Indice :</strong> ${escapeHtml(h)}</p>`).join('')}</div>`
+              : ''
+          }
+
+          ${
+            fb
+              ? `<div class="alert-banner ${fb.ok ? 'alert-success' : 'alert-warning'}" role="status">
+                   <strong>${fb.ok ? 'Situation professionnelle validée !' : 'Diagnostic pédagogique :'}</strong>
+                   <span>${escapeHtml(fb.message)}</span>
+                   ${
+                     fb.tips?.length
+                       ? `<ul style="margin:0.25rem 0 0;padding-left:1.1rem">${fb.tips.map((t) => `<li>${escapeHtml(t)}</li>`).join('')}</ul>`
+                       : ''
+                   }
+                 </div>`
+              : ''
+          }
+
+          <details class="advanced-panel" ${fb?.ok ? 'open' : ''}>
+            <summary>Correction détaillée &amp; Équivalent VBA + Cours associés</summary>
+            <div class="stack-md">
+              <div>
+                <strong>Formule de référence :</strong> <code>${escapeHtml(sit.referenceFormula)}</code>
+                <ol class="tutorial-step-list" style="margin-top:0.4rem">
+                  ${sit.detailedCorrection.map((step) => `<li>${escapeHtml(step)}</li>`).join('')}
+                </ol>
+              </div>
+              <div class="vba-viewer">
+                <div class="vba-viewer-toolbar"><span>Équivalent VBA</span><span>Automatisation correspondante</span></div>
+                <div class="vba-code-scroll">${highlightVbaToHtml(sit.vbaEquivalent)}</div>
+              </div>
+              <div class="chips-row">
+                <button type="button" class="btn-secondary btn-sm" data-open-acad="excel" data-ch-id="${escapeHtml(sit.relatedExcelChapter)}">Cours Académie Excel</button>
+                <button type="button" class="btn-secondary btn-sm" data-open-acad="vba" data-ch-id="${escapeHtml(sit.relatedVbaChapter)}">Cours Académie VBA</button>
+              </div>
+            </div>
+          </details>
+        </section>
+      </div>
+    `;
+
+    mount.querySelectorAll('[data-pick-sit]').forEach((b) => {
+      b.addEventListener('click', () => {
+        activeSituationId = b.dataset.pickSit;
+        paintSituationsTab(mount);
+      });
+    });
+
+    mount.querySelector('#sit-formula-input')?.addEventListener('input', (e) => {
+      situationInputs[sit.id] = e.target.value;
+    });
+
+    mount.querySelector('#sit-reset-btn')?.addEventListener('click', () => {
+      situationInputs[sit.id] = '';
+      delete situationFeedbacks[sit.id];
+      situationHintCounts[sit.id] = 0;
+      paintSituationsTab(mount);
+    });
+
+    mount.querySelector('#sit-hint-btn')?.addEventListener('click', () => {
+      situationHintCounts[sit.id] = Math.min(sit.hints.length, hintsShown + 1);
+      paintSituationsTab(mount);
+    });
+
+    mount.querySelector('#sit-verify-btn')?.addEventListener('click', () => {
+      const res = validateSituationAttempt(sit, situationInputs[sit.id] || '');
+      situationFeedbacks[sit.id] = res;
+      if (res.ok) {
+        recordSituationSolved(sit.id, true);
+        onNotify?.(`Situation « ${sit.domain} » réussie !`, 'success');
+      }
+      paintSituationsTab(mount);
+    });
+
+    mount.querySelector('#sit-to-lab-btn')?.addEventListener('click', () => {
+      loadTableIntoLab(sit.domain, sit.headers, sit.rows, sit.targetCell, situationInputs[sit.id] || sit.referenceFormula);
+    });
+
+    mount.querySelectorAll('[data-open-acad]').forEach((b) => {
+      b.addEventListener('click', () => {
+        setState({ academyTarget: { trackId: b.dataset.openAcad, chapterId: b.dataset.chId } }, 'academyTarget');
+        navigate('tutorial');
+      });
+    });
+  };
 
   let challengeLevelFilter = 'adaptive';
   let currentChallenge = pickChallenge('adaptive');
@@ -137,7 +519,14 @@ export function renderFormulasView(container, { navigate, onNotify }) {
               <strong>Progression Formules : ${masteredCount} / ${all.length} fonctions maîtrisées</strong>
               <span class="field-hint" style="margin-left:0.5rem">(${Math.round((masteredCount / all.length) * 100)} %)</span>
             </div>
-            ${levelChipsHtml}
+            <div class="chips-row">
+              ${
+                progress.lastVisited?.formulaId && progress.lastVisited.formulaId !== f.id
+                  ? `<button type="button" class="btn-secondary btn-sm" id="fm-resume-last-btn">Reprendre : ${escapeHtml(getFormulaById(progress.lastVisited.formulaId)?.name || 'Dernière fiche')}</button>`
+                  : ''
+              }
+              ${levelChipsHtml}
+            </div>
           </div>
           <progress class="tutorial-progress" value="${masteredCount}" max="${all.length}" aria-label="Progression des formules Excel"></progress>
         </div>
@@ -233,6 +622,7 @@ export function renderFormulasView(container, { navigate, onNotify }) {
                 </div>
                 <div class="chips-row">
                   <button type="button" class="btn-ghost btn-sm" id="fdemo-reset-btn">Réinitialiser</button>
+                  <button type="button" class="btn-secondary btn-sm" id="fdemo-to-lab-btn">Ouvrir dans le Laboratoire</button>
                   <button type="button" class="btn-secondary btn-sm" id="fdemo-analyze-btn">Analyser cette formule</button>
                 </div>
               </div>
@@ -329,9 +719,18 @@ export function renderFormulasView(container, { navigate, onNotify }) {
     mount.querySelectorAll('[data-jump-f]').forEach((b) => {
       b.addEventListener('click', () => {
         activeFormulaId = b.dataset.jumpF;
+        setLastFormulaVisited('lessons', { formulaId: activeFormulaId });
         paintLessonsTab(mount);
         mount.querySelector('#fm-title')?.focus?.();
       });
+    });
+
+    mount.querySelector('#fm-resume-last-btn')?.addEventListener('click', () => {
+      const fid = loadFormulaProgress().lastVisited?.formulaId;
+      if (fid && getFormulaById(fid)) {
+        activeFormulaId = fid;
+        paintLessonsTab(mount);
+      }
     });
 
     mount.querySelector('#fm-toggle-master-btn')?.addEventListener('click', () => {
@@ -369,6 +768,16 @@ export function renderFormulasView(container, { navigate, onNotify }) {
       analyzerFormula = f.interactiveDemo.formula;
       activeSubTab = 'analyzer';
       paintShell();
+    });
+
+    mount.querySelector('#fdemo-to-lab-btn')?.addEventListener('click', () => {
+      loadTableIntoLab(
+        f.name,
+        f.interactiveDemo.headers,
+        getDemoRows(f),
+        `${colNumberToLetters((f.interactiveDemo.headers?.length || 2) + 1)}2`,
+        f.interactiveDemo.formula
+      );
     });
 
     mount.querySelector('#fm-open-vba-gen')?.addEventListener('click', () => {
@@ -432,9 +841,16 @@ export function renderFormulasView(container, { navigate, onNotify }) {
                      <select id="bld-combiner">
                        <option value="ET" ${cfg.combiner === 'ET' ? 'selected' : ''}>ET (Toutes les conditions doivent être vraies)</option>
                        <option value="OU" ${cfg.combiner === 'OU' ? 'selected' : ''}>OU (Au moins une condition doit être vraie)</option>
+                       <option value="ET_OU" ${cfg.combiner === 'ET_OU' ? 'selected' : ''}>ET + OU (Toutes ces conditions ET, ou bien la clause alternative ci-dessous)</option>
                      </select>
                    </div>`
-                : ''
+                : `<div class="field">
+                     <label for="bld-combiner">Mode de combinaison</label>
+                     <select id="bld-combiner">
+                       <option value="ET" ${cfg.combiner !== 'ET_OU' ? 'selected' : ''}>Condition simple</option>
+                       <option value="ET_OU" ${cfg.combiner === 'ET_OU' ? 'selected' : ''}>Combiner avec une clause OU alternative (ET + OU)</option>
+                     </select>
+                   </div>`
             }
 
             <div class="stack-sm">
@@ -456,16 +872,37 @@ export function renderFormulasView(container, { navigate, onNotify }) {
                     <label>Valeur comparée</label>
                     <input type="text" data-cidx="${idx}" data-cfield="val" value="${escapeHtml(c.val)}" placeholder="Ex: 7 ou Validé">
                   </div>
-                  ${
-                    conds.length > 1
-                      ? `<button type="button" class="btn-icon btn-sm" data-del-cond="${idx}" aria-label="Supprimer cette condition" style="align-self:end">✕</button>`
-                      : '<div></div>'
-                  }
+                  <div class="builder-block-actions">
+                    <button type="button" class="btn-icon btn-sm" data-move-cond="${idx}" data-dir="-1" ${idx === 0 ? 'disabled' : ''} title="Monter" aria-label="Monter cette condition">↑</button>
+                    <button type="button" class="btn-icon btn-sm" data-move-cond="${idx}" data-dir="1" ${idx === conds.length - 1 ? 'disabled' : ''} title="Descendre" aria-label="Descendre cette condition">↓</button>
+                    ${
+                      conds.length > 1
+                        ? `<button type="button" class="btn-icon btn-sm" data-del-cond="${idx}" aria-label="Supprimer cette condition">✕</button>`
+                        : ''
+                    }
+                  </div>
                 </div>
               `
                 )
                 .join('')}
             </div>
+
+            ${
+              cfg.combiner === 'ET_OU'
+                ? `<div class="panel stack-sm" style="background:var(--surface-subtle)">
+                     <strong>Condition alternative OU (déclenche aussi VRAI si vérifiée)</strong>
+                     <div class="builder-cond-row">
+                       <div class="field"><label>Cellule (OU)</label><input type="text" id="bld-or-cell" value="${escapeHtml(cfg.orExtra?.cell || 'D2')}"></div>
+                       <div class="field">
+                         <label>Opérateur</label>
+                         <select id="bld-or-op">${EXCEL_OPERATORS.map((o) => `<option value="${escapeHtml(o.value)}" ${(cfg.orExtra?.op || '=') === o.value ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select>
+                       </div>
+                       <div class="field"><label>Valeur</label><input type="text" id="bld-or-val" value="${escapeHtml(cfg.orExtra?.val || 'Urgent')}"></div>
+                       <div></div>
+                     </div>
+                   </div>`
+                : ''
+            }
 
             <div class="form-grid-2">
               <div class="field">
@@ -504,9 +941,14 @@ export function renderFormulasView(container, { navigate, onNotify }) {
       }
 
       if (builderTemplateId === 'si_conditions') {
+        const branches = cfg.branches || [];
         return `
           <div class="stack-sm">
-            ${(cfg.branches || [])
+            <div class="panel-header" style="margin-bottom:0">
+              <strong>Paliers de conditions</strong>
+              <button type="button" class="btn-secondary btn-sm" id="bld-add-branch-btn">+ Ajouter un palier</button>
+            </div>
+            ${branches
               .map(
                 (b, idx) => `
               <div class="builder-cond-row">
@@ -517,6 +959,11 @@ export function renderFormulasView(container, { navigate, onNotify }) {
                 </div>
                 <div class="field"><label>Valeur</label><input type="text" data-bidx="${idx}" data-bfield="val" value="${escapeHtml(b.val)}"></div>
                 <div class="field"><label>Résultat</label><input type="text" data-bidx="${idx}" data-bfield="res" value="${escapeHtml(b.res)}"></div>
+                <div class="builder-block-actions">
+                  <button type="button" class="btn-icon btn-sm" data-move-branch="${idx}" data-dir="-1" ${idx === 0 ? 'disabled' : ''} aria-label="Monter ce palier">↑</button>
+                  <button type="button" class="btn-icon btn-sm" data-move-branch="${idx}" data-dir="1" ${idx === branches.length - 1 ? 'disabled' : ''} aria-label="Descendre ce palier">↓</button>
+                  ${branches.length > 1 ? `<button type="button" class="btn-icon btn-sm" data-del-branch="${idx}" aria-label="Supprimer ce palier">✕</button>` : ''}
+                </div>
               </div>
             `
               )
@@ -540,6 +987,7 @@ export function renderFormulasView(container, { navigate, onNotify }) {
       }
 
       if (builderTemplateId === 'somme_si_ens' || builderTemplateId === 'nb_si_ens') {
+        const crList = cfg.criteria || [];
         return `
           <div class="stack-sm">
             ${
@@ -547,12 +995,22 @@ export function renderFormulasView(container, { navigate, onNotify }) {
                 ? `<div class="field"><label>Plage des montants à additionner (en 1er)</label><input type="text" data-bkey="sumRange" value="${escapeHtml(cfg.sumRange)}"></div>`
                 : ''
             }
-            ${(cfg.criteria || [])
+            <div class="panel-header" style="margin-bottom:0">
+              <strong>Paires (plage ; critère)</strong>
+              <button type="button" class="btn-secondary btn-sm" id="bld-add-crit-btn">+ Ajouter un critère</button>
+            </div>
+            ${crList
               .map(
                 (cr, idx) => `
-              <div class="form-grid-2">
+              <div class="builder-cond-row">
                 <div class="field"><label>Plage critère ${idx + 1}</label><input type="text" data-cridx="${idx}" data-crfield="range" value="${escapeHtml(cr.range)}"></div>
                 <div class="field"><label>Critère ${idx + 1}</label><input type="text" data-cridx="${idx}" data-crfield="crit" value="${escapeHtml(cr.crit)}"></div>
+                <div></div>
+                <div class="builder-block-actions">
+                  <button type="button" class="btn-icon btn-sm" data-move-crit="${idx}" data-dir="-1" ${idx === 0 ? 'disabled' : ''} aria-label="Monter ce critère">↑</button>
+                  <button type="button" class="btn-icon btn-sm" data-move-crit="${idx}" data-dir="1" ${idx === crList.length - 1 ? 'disabled' : ''} aria-label="Descendre ce critère">↓</button>
+                  ${crList.length > 1 ? `<button type="button" class="btn-icon btn-sm" data-del-crit="${idx}" aria-label="Supprimer ce critère">✕</button>` : ''}
+                </div>
               </div>
             `
               )
@@ -627,15 +1085,27 @@ export function renderFormulasView(container, { navigate, onNotify }) {
     };
 
     const built = buildVisualFormula(builderTemplateId, cfg);
+    if (!builderSampleRows) {
+      builderSampleRows = (built.sampleRows || []).map((r) => [...r]);
+    }
+    const evalBuilderSample = () => {
+      const nextBuilt = buildVisualFormula(builderTemplateId, builderConfigs[builderTemplateId]);
+      const cleanFormula = nextBuilt.formula.replace(/Clients!/gi, '');
+      const grid = buildGridFromTable(nextBuilt.sampleHeaders || [], builderSampleRows || []);
+      return { built: nextBuilt, evalRes: evaluateFrenchFormula(cleanFormula, grid) };
+    };
+    const sampleState = evalBuilderSample();
 
     const updateLiveOutput = () => {
-      const nextBuilt = buildVisualFormula(builderTemplateId, builderConfigs[builderTemplateId]);
+      const { built: nextBuilt, evalRes } = evalBuilderSample();
       const codeEl = mount.querySelector('#bld-live-formula');
       const expEl = mount.querySelector('#bld-live-explanation');
       const vbaEl = mount.querySelector('#bld-live-vba');
+      const resEl = mount.querySelector('#bld-live-sample-res');
       if (codeEl) codeEl.textContent = nextBuilt.formula;
       if (expEl) expEl.textContent = nextBuilt.explanation;
       if (vbaEl) vbaEl.innerHTML = highlightVbaToHtml(nextBuilt.vbaEquivalent);
+      if (resEl) resEl.textContent = evalRes.ok ? evalRes.displayValue : `${evalRes.displayValue} (${evalRes.error || ''})`;
     };
 
     mount.innerHTML = `
@@ -643,7 +1113,7 @@ export function renderFormulasView(container, { navigate, onNotify }) {
         <section class="panel stack-md">
           <div>
             <h2 class="panel-title">Constructeur visuel sans connaître la syntaxe</h2>
-            <p class="field-hint">Sélectionnez un modèle de formule, remplissez vos paramètres métier et obtenez la formule Excel française prête à copier.</p>
+            <p class="field-hint">Sélectionnez un modèle de formule, ajoutez ou réorganisez les blocs logiques (↑/↓) et observez immédiatement la formule et le résultat.</p>
           </div>
 
           <div class="field">
@@ -654,6 +1124,33 @@ export function renderFormulasView(container, { navigate, onNotify }) {
           </div>
 
           ${renderBuilderFields()}
+
+          ${
+            (built.sampleHeaders || []).length > 0
+              ? `<div class="stack-sm">
+                   <strong>Jeu de données de test (modifiable en direct)</strong>
+                   <div class="data-table-wrap">
+                     <table class="data-table excel-grid-table">
+                       <thead>
+                         <tr><th class="row-num">#</th>${built.sampleHeaders.map((h, ci) => `<th>${colNumberToLetters(ci + 1)} · ${escapeHtml(h)}</th>`).join('')}</tr>
+                       </thead>
+                       <tbody>
+                         ${(builderSampleRows || [])
+                           .map(
+                             (row, rIdx) => `<tr><th class="row-num">${rIdx + 2}</th>${row
+                               .map(
+                                 (cell, cIdx) =>
+                                   `<td><input type="text" class="mini-cell-input" data-bsample-r="${rIdx}" data-bsample-c="${cIdx}" value="${escapeHtml(cell)}"></td>`
+                               )
+                               .join('')}</tr>`
+                           )
+                           .join('')}
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>`
+              : ''
+          }
         </section>
 
         <section class="panel stack-md">
@@ -661,12 +1158,18 @@ export function renderFormulasView(container, { navigate, onNotify }) {
             <h2 class="panel-title">Formule générée en temps réel</h2>
             <div class="chips-row">
               <button type="button" class="btn-primary btn-sm" id="bld-copy-btn">Copier la formule</button>
-              <button type="button" class="btn-secondary btn-sm" id="bld-to-analyzer-btn">Tester dans l'Analyseur</button>
+              <button type="button" class="btn-secondary btn-sm" id="bld-to-lab-btn">Tester dans le Laboratoire</button>
+              <button type="button" class="btn-secondary btn-sm" id="bld-to-analyzer-btn">Analyser</button>
             </div>
           </div>
 
           <div class="formula-code-banner">
             <code id="bld-live-formula" style="font-size:1.05rem">${escapeHtml(built.formula)}</code>
+          </div>
+
+          <div class="alert-banner ${sampleState.evalRes?.ok ? 'alert-success' : 'alert-warning'}">
+            <strong>Résultat calculé sur le tableau test :</strong>
+            <span id="bld-live-sample-res" style="font-size:1.08rem;font-weight:800">${escapeHtml(sampleState.evalRes?.ok ? sampleState.evalRes.displayValue : `${sampleState.evalRes?.displayValue || ''}`)}</span>
           </div>
 
           <div class="alert-banner alert-info">
@@ -687,12 +1190,20 @@ export function renderFormulasView(container, { navigate, onNotify }) {
     // Events Constructeur
     mount.querySelector('#bld-template-sel')?.addEventListener('change', (e) => {
       builderTemplateId = e.target.value;
+      builderSampleRows = null;
       paintBuilderTab(mount);
     });
 
     mount.querySelector('#bld-add-cond-btn')?.addEventListener('click', () => {
       cfg.conditions.push({ cell: 'C2', op: '=', val: 'Validé' });
       paintBuilderTab(mount);
+    });
+
+    mount.querySelectorAll('[data-move-cond]').forEach((b) => {
+      b.addEventListener('click', () => {
+        cfg.conditions = moveBuilderItem(cfg.conditions, Number(b.dataset.moveCond), Number(b.dataset.dir));
+        paintBuilderTab(mount);
+      });
     });
 
     mount.querySelectorAll('[data-del-cond]').forEach((b) => {
@@ -704,7 +1215,36 @@ export function renderFormulasView(container, { navigate, onNotify }) {
 
     mount.querySelector('#bld-combiner')?.addEventListener('change', (e) => {
       cfg.combiner = e.target.value;
+      paintBuilderTab(mount);
+    });
+
+    mount.querySelector('#bld-or-cell')?.addEventListener('input', (e) => {
+      cfg.orExtra = { ...(cfg.orExtra || { cell: 'D2', op: '=', val: 'Urgent' }), cell: e.target.value };
       updateLiveOutput();
+    });
+    mount.querySelector('#bld-or-op')?.addEventListener('change', (e) => {
+      cfg.orExtra = { ...(cfg.orExtra || { cell: 'D2', op: '=', val: 'Urgent' }), op: e.target.value };
+      updateLiveOutput();
+    });
+    mount.querySelector('#bld-or-val')?.addEventListener('input', (e) => {
+      cfg.orExtra = { ...(cfg.orExtra || { cell: 'D2', op: '=', val: 'Urgent' }), val: e.target.value };
+      updateLiveOutput();
+    });
+
+    mount.querySelectorAll('[data-bsample-r]').forEach((inp) => {
+      inp.addEventListener('input', (e) => {
+        const r = Number(inp.dataset.bsampleR);
+        const c = Number(inp.dataset.bsampleC);
+        builderSampleRows[r][c] = parseUserCellValue(e.target.value);
+        updateLiveOutput();
+      });
+    });
+
+    mount.querySelector('#bld-to-lab-btn')?.addEventListener('click', () => {
+      const cur = buildVisualFormula(builderTemplateId, builderConfigs[builderTemplateId]);
+      const cleanFormula = cur.formula.replace(/Clients!/gi, '');
+      const colTarget = colNumberToLetters(Math.min(6, (cur.sampleHeaders?.length || 2) + 1));
+      loadTableIntoLab(builderTemplateId, cur.sampleHeaders, builderSampleRows || [], `${colTarget}2`, cleanFormula);
     });
 
     mount.querySelectorAll('[data-cidx]').forEach((el) => {
@@ -730,7 +1270,40 @@ export function renderFormulasView(container, { navigate, onNotify }) {
         updateLiveOutput();
       });
     });
+    mount.querySelector('#bld-add-branch-btn')?.addEventListener('click', () => {
+      cfg.branches.push({ cell: 'B2', op: '>=', val: '2', res: 'À surveiller' });
+      paintBuilderTab(mount);
+    });
+    mount.querySelectorAll('[data-move-branch]').forEach((b) => {
+      b.addEventListener('click', () => {
+        cfg.branches = moveBuilderItem(cfg.branches, Number(b.dataset.moveBranch), Number(b.dataset.dir));
+        paintBuilderTab(mount);
+      });
+    });
+    mount.querySelectorAll('[data-del-branch]').forEach((b) => {
+      b.addEventListener('click', () => {
+        cfg.branches.splice(Number(b.dataset.delBranch), 1);
+        paintBuilderTab(mount);
+      });
+    });
     mount.querySelector('#bld-sc-def')?.addEventListener('input', (e) => { cfg.defaultVal = e.target.value; updateLiveOutput(); });
+
+    mount.querySelector('#bld-add-crit-btn')?.addEventListener('click', () => {
+      cfg.criteria.push({ range: 'E2:E20', crit: 'Actif' });
+      paintBuilderTab(mount);
+    });
+    mount.querySelectorAll('[data-move-crit]').forEach((b) => {
+      b.addEventListener('click', () => {
+        cfg.criteria = moveBuilderItem(cfg.criteria, Number(b.dataset.moveCrit), Number(b.dataset.dir));
+        paintBuilderTab(mount);
+      });
+    });
+    mount.querySelectorAll('[data-del-crit]').forEach((b) => {
+      b.addEventListener('click', () => {
+        cfg.criteria.splice(Number(b.dataset.delCrit), 1);
+        paintBuilderTab(mount);
+      });
+    });
 
     mount.querySelectorAll('[data-bkey]').forEach((el) => {
       const evt = el.tagName === 'SELECT' ? 'change' : 'input';
@@ -1024,21 +1597,29 @@ export function renderFormulasView(container, { navigate, onNotify }) {
         title: 'Décision logique (SI → If ... Then ... Else)',
         excel: '=SI(A1>10;"Oui";"Non")',
         vba: `If Range("A1").Value > 10 Then\n    resultat = "Oui"\nElse\n    resultat = "Non"\nEnd If`,
-        why: 'La formule recalcule automatiquement la cellule quand A1 change ; VBA permet en plus de colorer la ligne, envoyer un e-mail ou écrire dans un journal.'
+        why: 'La formule recalcule automatiquement la cellule quand A1 change ; VBA permet en plus de colorer la ligne, envoyer un e-mail ou écrire dans un journal.',
+        excelCh: 'ex06_conditions_erreurs',
+        vbaCh: 'ch04_conditions'
       },
       {
         title: 'Nettoyage & Doublons (SUPPRESPACE / UNIQUE → Trim / RemoveDuplicates)',
         excel: '=UNIQUE(SUPPRESPACE(A2:A100))',
         vba: `ws.Range("A1:D100").RemoveDuplicates Columns:=1, Header:=xlYes`,
-        why: 'La formule crée une copie filtrée sans toucher la source (Excel 365) ; la macro VBA nettoie le tableau source sur place sur toutes les versions.'
+        why: 'La formule crée une copie filtrée sans toucher la source (Excel 365) ; la macro VBA nettoie le tableau source sur place sur toutes les versions.',
+        excelCh: 'ex08_nettoyage_validation',
+        vbaCh: 'ch06_nettoyage_tri'
       },
       {
         title: 'Calculs conditionnels (SOMME.SI → WorksheetFunction.SumIf / Dictionary)',
         excel: '=SOMME.SI(B2:B50;"Payé";C2:C50)',
         vba: `total = WorksheetFunction.SumIf(ws.Range("B2:B50"), "Payé", ws.Range("C2:C50"))`,
-        why: 'Gardez les formules pour les tableaux de bord vivants ; passez au VBA quand vous consolidez plusieurs fichiers externes ou générez un PDF en 1 clic.'
+        why: 'Gardez les formules pour les tableaux de bord vivants ; passez au VBA quand vous consolidez plusieurs fichiers externes ou générez un PDF en 1 clic.',
+        excelCh: 'ex09_fonctions_conditionnelles',
+        vbaCh: 'ch08_tcd_kpi'
       }
     ];
+
+    const bridgeEval = analyzeAndTranslateFormula(bridgeFormulaInput);
 
     mount.innerHTML = `
       <div class="stack-md">
@@ -1049,6 +1630,7 @@ export function renderFormulasView(container, { navigate, onNotify }) {
               <p class="field-hint">Comprendre quand une formule Excel suffit, quand une macro VBA devient indispensable et comment traduire votre logique métier.</p>
             </div>
             <div class="chips-row">
+              <button type="button" class="btn-secondary btn-sm" id="br-go-excel-acad">Académie Excel (Parcours A)</button>
               <button type="button" class="btn-secondary btn-sm" id="br-go-academy">Académie VBA (Parcours B)</button>
               <button type="button" class="btn-primary btn-sm" id="br-go-guided">Générateur VBA</button>
             </div>
@@ -1058,7 +1640,7 @@ export function renderFormulasView(container, { navigate, onNotify }) {
             <div class="alert-banner alert-success">
               <strong>Quand utiliser une Formule Excel ?</strong>
               <ul style="margin:0.25rem 0 0;padding-left:1.1rem">
-                <li>Recalcul automatique instantané dès qu\'une cellule change.</li>
+                <li>Recalcul automatique instantané dès qu'une cellule change.</li>
                 <li>KPI, marges, totaux conditionnels (SOMME.SI.ENS), recherches (RECHERCHEX / INDEX+EQUIV).</li>
                 <li>Compatible Excel Web et partage sans avertissement sécurité macros.</li>
               </ul>
@@ -1067,17 +1649,39 @@ export function renderFormulasView(container, { navigate, onNotify }) {
               <strong>Quand passer à une Macro VBA ?</strong>
               <ul style="margin:0.25rem 0 0;padding-left:1.1rem">
                 <li>Enchaîner plusieurs actions (importer CSV → nettoyer → supprimer doublons → PDF).</li>
-                <li>Ouvrir/consolider plusieurs fichiers d\'un dossier, envoyer un brouillon Outlook.</li>
-                <li>Réagir à l\'ouverture du classeur ou modifier le fichier source sur place sans formules résiduelles.</li>
+                <li>Ouvrir/consolider plusieurs fichiers d'un dossier, envoyer un brouillon Outlook.</li>
+                <li>Réagir à l'ouverture du classeur ou modifier le fichier source sur place sans formules résiduelles.</li>
               </ul>
             </div>
+          </div>
+        </section>
+
+        <section class="panel stack-md">
+          <h3 style="margin:0">Convertisseur interactif Formule Excel → Code VBA commenté</h3>
+          <div class="field">
+            <label for="br-formula-input">Saisissez une formule conditionnelle ou de calcul (ex : =SI(B2&gt;=7;"Conforme";"À compléter"))</label>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+              <input type="text" id="br-formula-input" value="${escapeHtml(bridgeFormulaInput)}" style="flex:1;min-width:240px;font-family:var(--font-mono,monospace)">
+              <button type="button" class="btn-primary btn-sm" id="br-convert-btn">Traduire en VBA</button>
+            </div>
+          </div>
+          <p class="field-hint" style="margin:0"><strong>Ce que fait la formule :</strong> ${escapeHtml(bridgeEval.beginnerSummary)}</p>
+          <div class="vba-viewer">
+            <div class="vba-viewer-toolbar"><span>Équivalent VBA généré</span><span>Avec explication</span></div>
+            <div class="vba-code-scroll">${highlightVbaToHtml(bridgeEval.vbaBridgeSnippet || "' Saisissez une formule valide ci-dessus.")}</div>
           </div>
         </section>
 
         ${BRIDGE_CARDS.map(
           (c) => `
           <article class="panel stack-sm">
-            <h3>${escapeHtml(c.title)}</h3>
+            <div class="panel-header" style="margin-bottom:0">
+              <h3 style="margin:0">${escapeHtml(c.title)}</h3>
+              <div class="chips-row">
+                <button type="button" class="btn-ghost btn-sm" data-br-track="excel" data-br-ch="${escapeHtml(c.excelCh)}">Chapitre Excel</button>
+                <button type="button" class="btn-ghost btn-sm" data-br-track="vba" data-br-ch="${escapeHtml(c.vbaCh)}">Chapitre VBA</button>
+              </div>
+            </div>
             <p class="field-hint" style="margin:0">${escapeHtml(c.why)}</p>
             <div class="before-after-grid">
               <div>
@@ -1095,26 +1699,43 @@ export function renderFormulasView(container, { navigate, onNotify }) {
       </div>
     `;
 
+    mount.querySelector('#br-formula-input')?.addEventListener('input', (e) => {
+      bridgeFormulaInput = e.target.value;
+    });
+    mount.querySelector('#br-convert-btn')?.addEventListener('click', () => paintBridgeTab(mount));
+    mount.querySelector('#br-go-excel-acad')?.addEventListener('click', () => {
+      setState({ academyTarget: { trackId: 'excel', chapterId: 'ex06_conditions_erreurs' } }, 'academyTarget');
+      navigate('tutorial');
+    });
     mount.querySelector('#br-go-academy')?.addEventListener('click', () => {
       setState({ academyTarget: { trackId: 'vba', chapterId: 'ch01_premiers_pas' } }, 'academyTarget');
       navigate('tutorial');
+    });
+    mount.querySelectorAll('[data-br-track]').forEach((b) => {
+      b.addEventListener('click', () => {
+        setState({ academyTarget: { trackId: b.dataset.brTrack, chapterId: b.dataset.brCh } }, 'academyTarget');
+        navigate('tutorial');
+      });
     });
     mount.querySelector('#br-go-guided')?.addEventListener('click', () => navigate('guided'));
   };
 
   const paintShell = () => {
+    const formulaCount = getAllFormulas().length;
     container.innerHTML = `
       <div class="stack-md">
         <div class="page-header">
           <div>
-            <h1 class="page-title">Apprendre les formules Excel (38 fonctions · 5 niveaux)</h1>
-            <p class="page-subtitle">Fiches interactives avec tableaux manipulables, constructeur visuel sans syntaxe, traducteur de formules, défis progressifs et passerelle VBA.</p>
+            <h1 class="page-title">Laboratoire &amp; Formules Excel (${formulaCount} fonctions)</h1>
+            <p class="page-subtitle">Expérimentez directement dans un tableur interactif, apprenez les ${formulaCount} fonctions par niveau, entraînez-vous sur 6 situations professionnelles et passez facilement aux macros VBA.</p>
           </div>
         </div>
 
         <div class="tabs-bar" role="tablist" aria-label="Outils du module Formules Excel">
-          <button type="button" class="tab-btn" role="tab" data-fsub="lessons" aria-selected="${activeSubTab === 'lessons'}">Fiches &amp; Parcours (38)</button>
+          <button type="button" class="tab-btn" role="tab" data-fsub="lab" aria-selected="${activeSubTab === 'lab'}">Laboratoire tableur</button>
+          <button type="button" class="tab-btn" role="tab" data-fsub="lessons" aria-selected="${activeSubTab === 'lessons'}">Fiches &amp; Parcours (${formulaCount})</button>
           <button type="button" class="tab-btn" role="tab" data-fsub="builder" aria-selected="${activeSubTab === 'builder'}">Constructeur visuel</button>
+          <button type="button" class="tab-btn" role="tab" data-fsub="situations" aria-selected="${activeSubTab === 'situations'}">Situations pro (6)</button>
           <button type="button" class="tab-btn" role="tab" data-fsub="analyzer" aria-selected="${activeSubTab === 'analyzer'}">Analyseur &amp; Traducteur</button>
           <button type="button" class="tab-btn" role="tab" data-fsub="challenge" aria-selected="${activeSubTab === 'challenge'}">Mode Défi</button>
           <button type="button" class="tab-btn" role="tab" data-fsub="bridge" aria-selected="${activeSubTab === 'bridge'}">Passerelle Excel ↔ VBA</button>
@@ -1127,13 +1748,16 @@ export function renderFormulasView(container, { navigate, onNotify }) {
     container.querySelectorAll('[data-fsub]').forEach((b) => {
       b.addEventListener('click', () => {
         activeSubTab = b.dataset.fsub;
+        setLastFormulaVisited(activeSubTab, { formulaId: activeFormulaId });
         paintShell();
       });
     });
 
     const mount = container.querySelector('#formulas-sub-mount');
-    if (activeSubTab === 'lessons') paintLessonsTab(mount);
+    if (activeSubTab === 'lab') paintLabTab(mount);
+    else if (activeSubTab === 'lessons') paintLessonsTab(mount);
     else if (activeSubTab === 'builder') paintBuilderTab(mount);
+    else if (activeSubTab === 'situations') paintSituationsTab(mount);
     else if (activeSubTab === 'analyzer') paintAnalyzerTab(mount);
     else if (activeSubTab === 'challenge') paintChallengeTab(mount);
     else paintBridgeTab(mount);

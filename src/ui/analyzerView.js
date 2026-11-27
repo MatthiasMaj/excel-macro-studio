@@ -3,11 +3,14 @@ import { getState, setState } from '../core/store.js';
 import {
   analyzeWorkbookBuffer,
   reanalyzeSheetHeader,
-  createDemoWorkbookContext
+  createDemoWorkbookContext,
+  buildPedagogicalWorkbookReport
 } from '../services/excelAnalyzer.js';
+import { copyToClipboard } from '../services/exportService.js';
 
 export function renderAnalyzerView(container, { onNotify, navigate }) {
   let selectedSheetIdx = 0;
+  let pedagogicalMode = true;
 
   const handleFile = async (file) => {
     if (!file) return;
@@ -81,6 +84,90 @@ export function renderAnalyzerView(container, { onNotify, navigate }) {
             ? `<ul>${wb.relations.map((r) => `<li>${escapeHtml(r.description)}</li>`).join('')}</ul>`
             : '<p class="field-hint">Aucune référence inter-feuilles ni colonne clé partagée détectée.</p>';
 
+          const pedReport = pedagogicalMode ? buildPedagogicalWorkbookReport(wb, selectedSheetIdx) : null;
+          const pedHtml = pedReport
+            ? `
+              <div class="panel stack-md" style="border-color:var(--accent)">
+                <div class="panel-header" style="margin-bottom:0">
+                  <div>
+                    <h2 class="panel-title">Mode pédagogique — Formules, Erreurs &amp; Améliorations (${escapeHtml(pedReport.sheetName)})</h2>
+                    <p class="field-hint">Analyse 100 % locale des formules détectées et suggestions de fonctions Excel ou d'automatisations adaptées à ce tableau.</p>
+                  </div>
+                  <div class="chips-row">
+                    ${pedReport.detectedFunctions.map((fn) => `<span class="badge badge-info">${escapeHtml(fn)}</span>`).join('')}
+                  </div>
+                </div>
+
+                ${
+                  pedReport.errorDiagnostics.length > 0
+                    ? `<div class="alert-banner alert-danger">
+                         <strong>Erreurs de formules repérées</strong>
+                         <ul style="margin:0.25rem 0 0;padding-left:1.1rem">
+                           ${pedReport.errorDiagnostics.map((er) => `<li><code>${escapeHtml(er.cell)}</code> (${escapeHtml(er.code)}) : ${escapeHtml(er.advice)}</li>`).join('')}
+                         </ul>
+                       </div>`
+                    : ''
+                }
+
+                <div class="before-after-grid">
+                  <div class="stack-sm">
+                    <strong>Formules expliquées (${pedReport.formulaExplanations.length})</strong>
+                    ${
+                      pedReport.formulaExplanations.length > 0
+                        ? `<div class="stack-sm">
+                             ${pedReport.formulaExplanations
+                               .slice(0, 8)
+                               .map(
+                                 (fe) => `<div class="panel" style="padding:0.6rem 0.8rem;background:var(--surface-subtle)">
+                                            <div style="display:flex;justify-content:space-between;gap:0.4rem;flex-wrap:wrap">
+                                              <span><code>${escapeHtml(fe.cell)}</code> · <code>${escapeHtml(fe.frenchFormula)}</code></span>
+                                              <button type="button" class="btn-ghost btn-sm" data-open-formula="${escapeHtml(fe.frenchFormula)}">Expliquer en détail</button>
+                                            </div>
+                                            <p class="field-hint" style="margin:0.25rem 0 0">${escapeHtml(fe.summary)}</p>
+                                          </div>`
+                               )
+                               .join('')}
+                           </div>`
+                        : '<p class="field-hint">Aucune formule trouvée dans cet onglet — consultez les fonctions suggérées ci-contre pour enrichir ce tableau.</p>'
+                    }
+                  </div>
+
+                  <div class="stack-sm">
+                    <strong>Fonctions Excel suggérées pour vos données (${pedReport.suggestedFunctions.length})</strong>
+                    <div class="stack-sm">
+                      ${pedReport.suggestedFunctions
+                        .map(
+                          (sg) => `<div class="panel" style="padding:0.6rem 0.8rem;background:var(--surface-subtle)">
+                                     <div style="display:flex;justify-content:space-between;gap:0.4rem;flex-wrap:wrap;align-items:center">
+                                       <span class="badge badge-success">${escapeHtml(sg.fn)}</span>
+                                       <div class="chips-row">
+                                         <button type="button" class="btn-ghost btn-sm" data-copy-sug="${escapeHtml(sg.example)}">Copier l'exemple</button>
+                                         <button type="button" class="btn-ghost btn-sm" data-learn-fid="${escapeHtml(sg.formulaId)}">Fiche cours</button>
+                                       </div>
+                                     </div>
+                                     <p class="field-hint" style="margin:0.25rem 0">${escapeHtml(sg.reason)}</p>
+                                     <code>${escapeHtml(sg.example)}</code>
+                                   </div>`
+                        )
+                        .join('')}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="stack-sm">
+                  <strong>Pistes d'automatisation VBA adaptées à ce classeur</strong>
+                  <div class="chips-row">
+                    ${pedReport.vbaAutomationIdeas
+                      .map(
+                        (v) => `<button type="button" class="btn-secondary btn-sm" data-vba-idea="${escapeHtml(v.opId)}" title="${escapeHtml(v.reason)}">${escapeHtml(v.label)}</button>`
+                      )
+                      .join('')}
+                  </div>
+                </div>
+              </div>
+            `
+            : '';
+
           return `
             <div class="stack-md">
               <div class="alert-banner ${wb.hasEmbeddedMacros ? 'alert-warning' : 'alert-success'}">
@@ -92,6 +179,9 @@ export function renderAnalyzerView(container, { onNotify, navigate }) {
                 <div class="panel-header">
                   <h2>Structure des feuilles &amp; Correction manuelle</h2>
                   <div class="chips-row">
+                    <button type="button" class="btn-secondary btn-sm" id="an-toggle-ped-btn" aria-pressed="${pedagogicalMode}">
+                      ${pedagogicalMode ? '✓ Mode pédagogique activé' : 'Activer le mode pédagogique'}
+                    </button>
                     <button type="button" class="btn-primary btn-sm" id="an-use-guided-btn">Alimenter le Mode guidé avec cette feuille</button>
                     <button type="button" class="btn-ghost btn-sm" id="an-clear-btn">Décharger le classeur</button>
                   </div>
@@ -180,6 +270,8 @@ export function renderAnalyzerView(container, { onNotify, navigate }) {
                 <h2>Relations entre feuilles</h2>
                 ${relsHtml}
               </div>
+
+              ${pedHtml}
             </div>
           `;
         })()
@@ -304,6 +396,47 @@ export function renderAnalyzerView(container, { onNotify, navigate }) {
     container.querySelector('#an-clear-btn')?.addEventListener('click', () => {
       setState({ workbookContext: null }, 'workbookContext');
       paint();
+    });
+
+    container.querySelector('#an-toggle-ped-btn')?.addEventListener('click', () => {
+      pedagogicalMode = !pedagogicalMode;
+      paint();
+    });
+
+    container.querySelectorAll('[data-open-formula]').forEach((b) => {
+      b.addEventListener('click', () => {
+        setState({ formulaTarget: { subTab: 'analyzer', formula: b.dataset.openFormula } }, 'formulaTarget');
+        navigate('formulas');
+      });
+    });
+
+    container.querySelectorAll('[data-copy-sug]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        await copyToClipboard(b.dataset.copySug);
+        onNotify?.('Formule suggérée copiée dans le presse-papiers.', 'success');
+      });
+    });
+
+    container.querySelectorAll('[data-learn-fid]').forEach((b) => {
+      b.addEventListener('click', () => {
+        setState({ formulaTarget: { subTab: 'lessons', formulaId: b.dataset.learnFid } }, 'formulaTarget');
+        navigate('formulas');
+      });
+    });
+
+    container.querySelectorAll('[data-vba-idea]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const curWb = getState().workbookContext;
+        const sheet = curWb?.sheets?.[selectedSheetIdx];
+        setState(
+          {
+            selectedOperationId: b.dataset.vbaIdea,
+            guidedParams: sheet ? { sheetName: sheet.name, sourceSheet: sheet.name } : {}
+          },
+          'selectedOperationId'
+        );
+        navigate('guided');
+      });
     });
   };
 

@@ -13,6 +13,7 @@ const ENGLISH_TO_FRENCH_FUNCTIONS = {
   COUNTA: 'NBVAL',
   TODAY: 'AUJOURDHUI',
   NOW: 'MAINTENANT',
+  ROUND: 'ARRONDI',
   IF: 'SI',
   IFS: 'SI.CONDITIONS',
   AND: 'ET',
@@ -49,6 +50,7 @@ export const FUNCTION_DESCRIPTIONS = {
   NBVAL: 'Compte toutes les cellules non vides (nombres et textes).',
   AUJOURDHUI: 'Renvoie la date actuelle.',
   MAINTENANT: 'Renvoie la date et l\'heure actuelles.',
+  ARRONDI: 'Arrondit un nombre au nombre de décimales souhaité (ex. 2 pour des montants en €).',
   SI: 'Vérifie une condition et renvoie un résultat si vrai, sinon un autre si faux.',
   'SI.CONDITIONS': 'Évalue plusieurs conditions à la suite sans imbriquer plusieurs SI.',
   ET: 'Impose que toutes les conditions listées soient vraies en même temps.',
@@ -78,6 +80,56 @@ export const FUNCTION_DESCRIPTIONS = {
   UNIQUE: 'Extrait la liste des valeurs distinctes sans doublon.',
   TRIER: 'Trie dynamiquement une plage par ordre croissant ou décroissant.'
 };
+
+export const SUPPORTED_FORMULA_FUNCTIONS = Object.freeze(Object.keys(FUNCTION_DESCRIPTIONS));
+
+/**
+ * Traduit une formule brute au format anglais SheetJS (ex. SUM(B2:B5)) vers la syntaxe Excel française (=SOMME(B2:B5)).
+ */
+export function translateEnglishFormulaToFrench(rawFormula) {
+  const src = String(rawFormula ?? '').trim();
+  if (!src) return '';
+  const body = src.startsWith('=') ? src.slice(1) : src;
+  let out = '';
+  let inQuotes = false;
+  let i = 0;
+
+  while (i < body.length) {
+    const ch = body[i];
+    if (ch === '"') {
+      out += ch;
+      if (inQuotes && body[i + 1] === '"') {
+        out += '"';
+        i += 2;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      i++;
+      continue;
+    }
+    if (!inQuotes && ch === ',') {
+      out += ';';
+      i++;
+      continue;
+    }
+    if (!inQuotes && /[A-Za-zÀ-ÿ_]/.test(ch)) {
+      let j = i + 1;
+      while (j < body.length && /[A-Za-z0-9_.]/.test(body[j])) j++;
+      const word = body.slice(i, j);
+      const upper = word.toUpperCase();
+      if (body[j] === '(' && ENGLISH_TO_FRENCH_FUNCTIONS[upper]) {
+        out += ENGLISH_TO_FRENCH_FUNCTIONS[upper];
+      } else {
+        out += word;
+      }
+      i = j;
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  return `=${out}`;
+}
 
 class ExcelFormulaError extends Error {
   constructor(code, detail = '') {
@@ -210,9 +262,31 @@ function toBool(v) {
   throw new ExcelFormulaError('#VALEUR!', `Impossible de convertir "${s}" en booléen.`);
 }
 
+function parseDateMs(v) {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    return Date.UTC(v.getFullYear(), v.getMonth(), v.getDate());
+  }
+  if (typeof v !== 'string') return null;
+  const s = v.trim();
+  const fr = /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+\d{2}:\d{2})?$/.exec(s);
+  if (fr) {
+    return Date.UTC(Number(fr[3]), Number(fr[2]) - 1, Number(fr[1]));
+  }
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (iso) {
+    return Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  }
+  return null;
+}
+
 function excelCompareValues(a, b) {
   const sa = coerceScalar(a);
   const sb = coerceScalar(b);
+  const da = parseDateMs(sa);
+  const db = parseDateMs(sb);
+  if (da !== null && db !== null) {
+    return da - db;
+  }
   if (isNumericValue(sa) && isNumericValue(sb)) {
     return toNumberStrict(sa) - toNumberStrict(sb);
   }
@@ -587,6 +661,11 @@ function evalAstNode(node, gridMap) {
         return `${coerceScalar(lRaw) ?? ''}${coerceScalar(rRaw) ?? ''}`;
       }
       if (['+', '-', '*', '/'].includes(node.op)) {
+        const da = parseDateMs(lRaw);
+        const db = parseDateMs(rRaw);
+        if (da !== null && db !== null && node.op === '-') {
+          return Math.round((da - db) / 86400000);
+        }
         const a = toNumberStrict(lRaw);
         const b = toNumberStrict(rRaw);
         if (Number.isNaN(a) || Number.isNaN(b)) {
@@ -688,6 +767,17 @@ function evalFunctionCall(name, args, gridMap) {
 
     case 'MAINTENANT':
       return formatFrenchDate(new Date(), true);
+
+    case 'ARRONDI': {
+      if (args.length < 1) throw new ExcelFormulaError('#VALEUR!', 'ARRONDI attend au moins 1 argument.');
+      const num = toNumberStrict(evalAstNode(args[0], gridMap));
+      const digits = args[1] !== undefined ? Math.trunc(toNumberStrict(evalAstNode(args[1], gridMap))) : 0;
+      if (Number.isNaN(num) || Number.isNaN(digits)) {
+        throw new ExcelFormulaError('#VALEUR!', 'ARRONDI requiert des valeurs numériques.');
+      }
+      const factor = Math.pow(10, digits);
+      return Math.round((num + Number.EPSILON) * factor) / factor;
+    }
 
     case 'ET': {
       if (args.length === 0) throw new ExcelFormulaError('#VALEUR!');
@@ -978,7 +1068,10 @@ function evalFunctionCall(name, args, gridMap) {
     }
 
     default:
-      throw new ExcelFormulaError('#NOM?', `Fonction non reconnue par le simulateur local : ${name}`);
+      throw new ExcelFormulaError(
+        '#NON_SUPPORTE!',
+        `Fonction « ${name} » non prise en charge par le moteur pédagogique local (aucun calcul simulé n'est effectué).`
+      );
   }
 }
 
@@ -1244,3 +1337,4 @@ export function analyzeAndTranslateFormula(formulaStr, sampleCells = { B2: 8, C2
     vbaBridgeSnippet
   };
 }
+

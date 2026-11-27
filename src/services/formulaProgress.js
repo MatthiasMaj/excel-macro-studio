@@ -11,6 +11,8 @@ function defaultState() {
   return {
     masteredFunctions: {},   // { [formulaId]: true }
     exercises: {},           // { [formulaId]: { easy: bool, intermediate: bool, advanced: bool } }
+    situationsSolved: {},    // { [situationId]: true }
+    lastVisited: null,       // { subTab, formulaId?, situationId? }
     challengeStats: {
       score: 0,
       solvedIds: [],
@@ -75,6 +77,19 @@ export function toggleFormulaMastered(formulaId, mastered) {
   const p = loadFormulaProgress();
   if (mastered) p.masteredFunctions[formulaId] = true;
   else delete p.masteredFunctions[formulaId];
+  return saveFormulaProgress(p);
+}
+
+export function recordSituationSolved(situationId, passed) {
+  const p = loadFormulaProgress();
+  if (!p.situationsSolved) p.situationsSolved = {};
+  if (passed) p.situationsSolved[situationId] = true;
+  return saveFormulaProgress(p);
+}
+
+export function setLastFormulaVisited(subTab, extra = {}) {
+  const p = loadFormulaProgress();
+  p.lastVisited = { subTab, ...extra, visitedAt: new Date().toISOString() };
   return saveFormulaProgress(p);
 }
 
@@ -295,3 +310,4 @@ export function validateChallengeFormula(challenge, userFormula) {
       : `Votre formule renvoie « ${evalRes.displayValue} », alors que le résultat attendu sur ce tableau est « ${challenge.expectedDisplayValue} ».`
   };
 }
+

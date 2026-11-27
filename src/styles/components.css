@@ -1007,5 +1007,91 @@ details.advanced-panel[open] summary {
   }
 }
 
+/* Laboratoire tableur interactif */
+.lab-formula-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.lab-cell-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 0.35rem 0.55rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+}
+
+.lab-grid-table th,
+.lab-grid-table td {
+  min-width: 105px;
+  padding: 0.25rem;
+}
+
+.lab-grid-table th.row-num {
+  min-width: 38px;
+  width: 38px;
+  text-align: center;
+}
+
+.lab-cell-btn {
+  width: 100%;
+  text-align: left;
+  padding: 0.38rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-height: 30px;
+}
+
+.lab-cell-btn:hover {
+  background: var(--surface-subtle);
+  border-color: var(--border-color);
+}
+
+.lab-cell-active {
+  background: var(--accent-soft) !important;
+  border: 2px solid var(--accent) !important;
+  font-weight: 600;
+}
+
+.lab-cell-formula-tag {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+.lab-cell-error {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.builder-block-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  align-self: end;
+}
+
+
 
 

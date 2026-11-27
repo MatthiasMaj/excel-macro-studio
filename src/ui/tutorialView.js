@@ -49,6 +49,21 @@ function downloadChapterBas(filRouge) {
   return filename;
 }
 
+const TRACK_CHAPTER_BRIDGES = {
+  ex05_fonctions_base: { vbaId: 'ch02_cellules_plages', label: 'Lire/écrire ces cellules en VBA (Ch. 2)' },
+  ex06_conditions_erreurs: { vbaId: 'ch04_conditions', label: 'Traduire SI/SIERREUR en If...Then VBA (Ch. 4)' },
+  ex07_tableaux_filtres_tri: { vbaId: 'ch06_nettoyage_tri', label: 'Automatiser le tri/nettoyage en VBA (Ch. 6)' },
+  ex08_nettoyage_validation: { vbaId: 'ch06_nettoyage_tri', label: 'Nettoyage automatique de masse en VBA (Ch. 6)' },
+  ex09_fonctions_conditionnelles: { vbaId: 'ch08_tcd_kpi', label: 'Calculer des KPI en VBA (Ch. 8)' },
+  ex10_recherches_avancees: { vbaId: 'ch07_dates_rapprochements', label: 'Rapprochements ultra-rapides par Dictionnaire VBA (Ch. 7)' },
+  ex11_tcd_graphiques: { vbaId: 'ch08_tcd_kpi', label: 'Créer TCD et KPI en VBA (Ch. 8)' },
+  ch02_cellules_plages: { excelId: 'ex02_saisie_navigation', label: 'Revoir cellules & plages en Excel (Parcours A)' },
+  ch04_conditions: { excelId: 'ex06_conditions_erreurs', label: 'Revoir SI, ET, OU en formules Excel (Parcours A)' },
+  ch06_nettoyage_tri: { excelId: 'ex07_tableaux_filtres_tri', label: 'Revoir filtres & tableaux Excel (Parcours A)' },
+  ch07_dates_rapprochements: { excelId: 'ex10_recherches_avancees', label: 'Revoir RECHERCHEX & dates (Parcours A)' },
+  ch08_tcd_kpi: { excelId: 'ex11_tcd_graphiques', label: 'Revoir TCD & KPI sans code (Parcours A)' }
+};
+
 export function renderTutorialView(container, { navigate, onNotify }) {
   const vbaChapters = getEnrichedVbaChapters();
   const initialTarget = getState().academyTarget;
@@ -335,9 +350,17 @@ export function renderTutorialView(container, { navigate, onNotify }) {
                 </div>
                 <h2 id="cur-ch-title" class="panel-title" style="font-size:1.3rem" tabindex="-1">${escapeHtml(ch.title)}</h2>
               </div>
-              <button type="button" class="btn-secondary btn-sm" id="cur-toggle-done-btn" aria-pressed="${isDone}">
-                ${isDone ? '✓ Chapitre validé' : 'Marquer comme terminé'}
-              </button>
+              <div class="chips-row">
+                <button type="button" class="btn-ghost btn-sm" id="cur-open-lab-btn">Laboratoire de formules</button>
+                ${
+                  TRACK_CHAPTER_BRIDGES[ch.id]
+                    ? `<button type="button" class="btn-ghost btn-sm" id="cur-cross-track-btn">${escapeHtml(TRACK_CHAPTER_BRIDGES[ch.id].label)}</button>`
+                    : ''
+                }
+                <button type="button" class="btn-secondary btn-sm" id="cur-toggle-done-btn" aria-pressed="${isDone}">
+                  ${isDone ? '✓ Chapitre validé' : 'Marquer comme terminé'}
+                </button>
+              </div>
             </div>
 
             <p class="page-subtitle">${escapeHtml(ch.summary)}</p>
@@ -529,8 +552,8 @@ export function renderTutorialView(container, { navigate, onNotify }) {
               <button type="button" class="btn-ghost btn-sm" ${prevCh ? `data-jump-ch="${escapeHtml(prevCh.id)}"` : 'disabled'}>
                 ← ${prevCh ? escapeHtml(prevCh.title) : 'Début du parcours'}
               </button>
-              <button type="button" class="btn-primary btn-sm" ${nextCh ? `data-jump-ch="${escapeHtml(nextCh.id)}"` : 'disabled'}>
-                ${nextCh ? `Chapitre suivant : ${escapeHtml(nextCh.title)} →` : activeTrack === 'excel' ? 'Parcours A terminé ! Passez au Parcours B' : 'Parcours B terminé !'}
+              <button type="button" class="btn-primary btn-sm" ${nextCh ? `data-jump-ch="${escapeHtml(nextCh.id)}"` : activeTrack === 'excel' ? 'id="cur-switch-to-vba-btn"' : 'disabled'}>
+                ${nextCh ? `Chapitre suivant : ${escapeHtml(nextCh.title)} →` : activeTrack === 'excel' ? 'Parcours A terminé ! Passer au Parcours B (VBA) →' : 'Parcours B terminé !'}
               </button>
             </nav>
           </article>
@@ -657,6 +680,28 @@ export function renderTutorialView(container, { navigate, onNotify }) {
 
     container.querySelector('#cur-toggle-done-btn')?.addEventListener('click', () => {
       markChapterCompleted(activeTrack, ch.id, !isDone);
+      paint();
+    });
+
+    container.querySelector('#cur-open-lab-btn')?.addEventListener('click', () => {
+      setState({ formulaTarget: { subTab: 'lab' } }, 'formulaTarget');
+      navigate('formulas');
+    });
+
+    container.querySelector('#cur-cross-track-btn')?.addEventListener('click', () => {
+      const bridge = TRACK_CHAPTER_BRIDGES[ch.id];
+      if (!bridge) return;
+      activeTrack = bridge.vbaId ? 'vba' : 'excel';
+      activeChapterId = bridge.vbaId || bridge.excelId;
+      levelFilter = 'ALL';
+      paint();
+      container.querySelector('#cur-ch-title')?.focus?.();
+    });
+
+    container.querySelector('#cur-switch-to-vba-btn')?.addEventListener('click', () => {
+      activeTrack = 'vba';
+      levelFilter = 'ALL';
+      activeChapterId = vbaChapters[0].id;
       paint();
     });
 

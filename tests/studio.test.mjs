@@ -7,7 +7,7 @@ import { generateSingleMacro } from '../src/engine/vbaGenerator.js';
 import { generateWorkflowMacro } from '../src/engine/workflowComposer.js';
 import { refineMacroResult } from '../src/engine/vbaRefiner.js';
 import { highlightVbaToHtml } from '../src/engine/vbaHighlighter.js';
-import { analyzeWorkbookBuffer, reanalyzeSheetHeader } from '../src/services/excelAnalyzer.js';
+import { analyzeWorkbookBuffer, reanalyzeSheetHeader, buildPedagogicalWorkbookReport } from '../src/services/excelAnalyzer.js';
 import { analyzeNaturalLanguageRequest, buildFromNaturalLanguage } from '../src/services/naturalLanguageEngine.js';
 import { buildBasFileContent, buildExcelStarterKitBuffer } from '../src/services/exportService.js';
 import { validateSheetName, validateColumnRef } from '../src/core/validation.js';
@@ -44,10 +44,19 @@ import { generateOfficeScript, generateOfficeScriptWorkflow } from '../src/engin
 import {
   buildGridFromTable,
   evaluateFrenchFormula,
-  analyzeAndTranslateFormula
+  analyzeAndTranslateFormula,
+  SUPPORTED_FORMULA_FUNCTIONS,
+  translateEnglishFormulaToFrench
 } from '../src/engine/excelFormulaEngine.js';
 import { FORMULA_LEVELS, FORMULA_CATALOG, searchFormulas } from '../src/services/formulaCatalog.js';
-import { buildVisualFormula, getBuilderTemplates } from '../src/services/formulaBuilderConfig.js';
+import { buildVisualFormula, getBuilderTemplates, moveBuilderItem } from '../src/services/formulaBuilderConfig.js';
+import {
+  LAB_PRESETS,
+  shiftFormulaReferences,
+  evaluateLabSheet,
+  fillDownFormula
+} from '../src/services/formulaLabEngine.js';
+import { PRO_SITUATIONS, validateSituationAttempt } from '../src/services/proSituationsData.js';
 import {
   FORMULA_CHALLENGES,
   validateChallengeFormula,
@@ -386,10 +395,11 @@ test('Générateur Office Scripts (Excel Web), Assistant NL maintenance, Audit V
   assert.ok(ctx.sheets[0].inconsistencies.length >= 2);
 });
 
-test('Formules Excel : 38 fiches (5 niveaux) et évaluation en direct des 38 démos interactives', () => {
+test('Formules Excel : 39 fiches (5 niveaux, ARRONDI inclus) et évaluation en direct des 39 démos interactives', () => {
   assert.equal(FORMULA_LEVELS.length, 5);
-  assert.equal(FORMULA_CATALOG.length, 38);
+  assert.equal(FORMULA_CATALOG.length, 39);
   assert.ok(searchFormulas('RECHERCHEX').length >= 1);
+  assert.ok(SUPPORTED_FORMULA_FUNCTIONS.includes('ARRONDI'));
 
   const ids = new Set();
   for (const f of FORMULA_CATALOG) {
@@ -528,5 +538,75 @@ test('Mode commentaires binaire (Avec / Sans commentaires) : VBA, Workflows et O
   );
   assert.equal(stripAllOfficeScriptComments(osWith.rawCode), osNone.code);
   assert.equal(applyOfficeScriptCommentLevel(osWith.rawCode, 'with'), osWith.code);
+});
+
+test('Laboratoire tableur : évaluation multi-cellules, références absolues $, recopie, cycles #CIRC! et fonctions non supportées', () => {
+  assert.equal(evaluateFrenchFormula('=ARRONDI(149.955*1,2;2)', {}).displayValue, '179,95');
+  const unsupported = evaluateFrenchFormula('=RECHERCHEVX(A1;B1:C4;2)', {});
+  assert.equal(unsupported.ok, false);
+  assert.equal(unsupported.displayValue, '#NON_SUPPORTE!');
+
+  assert.equal(
+    shiftFormulaReferences('=SI(B2>=7;$E$1;"Non")', 2, 0),
+    '=SI(B4>=7;$E$1;"Non")'
+  );
+
+  const labRes = evaluateLabSheet(LAB_PRESETS[0].cells, 8, 6);
+  assert.equal(labRes.cells.C2.displayValue, 'Conforme');
+  assert.equal(labRes.cells.C3.displayValue, 'À compléter');
+  assert.equal(labRes.cells.C4.displayValue, 'Conforme');
+  assert.equal(labRes.cells.B6.displayValue, '22');
+
+  const filled = fillDownFormula(LAB_PRESETS[2].cells, 'C2', 4);
+  assert.equal(filled.C3, '=ARRONDI(B3*(1+$E$1);2)');
+  const filledEval = evaluateLabSheet(filled, 8, 6);
+  assert.equal(filledEval.cells.C6.displayValue, '1638,66');
+
+  const circ = evaluateLabSheet({ A1: '=B1+1', B1: '=A1+1' }, 3, 3);
+  assert.equal(circ.cells.A1.ok, false);
+  assert.equal(circ.cells.A1.displayValue, '#CIRC!');
+});
+
+test('Situations professionnelles (6 métiers), Constructeur ET+OU & Analyseur pédagogique de classeurs', () => {
+  assert.equal(PRO_SITUATIONS.length, 6);
+  for (const sit of PRO_SITUATIONS) {
+    const okRes = validateSituationAttempt(sit, sit.referenceFormula);
+    assert.equal(okRes.ok, true, `Situation en échec : ${sit.id} — ${okRes.message}`);
+  }
+  const badSep = validateSituationAttempt(PRO_SITUATIONS[0], '=SI(B2>=7,"Conforme","À compléter")');
+  assert.equal(badSep.ok, false);
+  assert.ok(badSep.message.includes('point-virgule'));
+
+  const etOu = buildVisualFormula('si', {
+    conditions: [
+      { cell: 'B2', op: '>=', val: '7' },
+      { cell: 'C2', op: '=', val: 'Validé' }
+    ],
+    combiner: 'ET_OU',
+    orExtra: { cell: 'D2', op: '=', val: 'Urgent' },
+    trueVal: 'Conforme',
+    falseVal: 'À revoir'
+  });
+  assert.equal(etOu.formula, '=SI(OU(ET(B2>=7;C2="Validé");D2="Urgent");"Conforme";"À revoir")');
+  assert.deepEqual(moveBuilderItem(['A', 'B', 'C'], 0, 1), ['B', 'A', 'C']);
+
+  // Analyseur pédagogique sur un classeur de dépenses multi-critères
+  assert.equal(translateEnglishFormulaToFrench('SUM(C2:C4)'), '=SOMME(C2:C4)');
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Catégorie', 'Service', 'Montant_HT', 'Date_Depense'],
+    ['Matériel', 'IT', 1200, new Date('2026-10-10')],
+    ['Logiciel', 'RH', 450, new Date('2026-10-12')],
+    ['Total', '', { t: 'n', f: 'SUM(C2:C3)', v: 1650 }, '']
+  ]);
+  XLSX.utils.book_append_sheet(wb, ws, 'Dépenses');
+  const ctx = analyzeWorkbookBuffer(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }), 'Depenses.xlsx');
+  const ped = buildPedagogicalWorkbookReport(ctx, 0);
+  assert.ok(ped.formulaExplanations.some((f) => f.frenchFormula === '=SOMME(C2:C3)'));
+  const suggestedNames = ped.suggestedFunctions.map((s) => s.fn);
+  assert.ok(suggestedNames.includes('SOMME'));
+  assert.ok(suggestedNames.includes('MOYENNE'));
+  assert.ok(suggestedNames.includes('SOMME.SI'));
+  assert.ok(suggestedNames.includes('SOMME.SI.ENS'));
 });
 

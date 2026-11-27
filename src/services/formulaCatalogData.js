@@ -4,7 +4,7 @@
  */
 
 export const FORMULA_LEVELS = [
-  { id: 'flvl1', number: 1, name: 'Niveau 1 — Les fondamentaux', subtitle: 'Calculs statistiques simples et dates du jour (8 fonctions)' },
+  { id: 'flvl1', number: 1, name: 'Niveau 1 — Les fondamentaux', subtitle: 'Calculs statistiques simples, dates et arrondi (9 fonctions)' },
   { id: 'flvl2', number: 2, name: 'Niveau 2 — Les fonctions conditionnelles', subtitle: 'Décisions logiques, combinaisons ET/OU/NON et SIERREUR (7 fiches)' },
   { id: 'flvl3', number: 3, name: 'Niveau 3 — Les calculs conditionnels', subtitle: 'Agréger et compter selon 1 ou plusieurs critères (6 fonctions)' },
   { id: 'flvl4', number: 4, name: 'Niveau 4 — Les recherches', subtitle: 'Croiser des tableaux avec RECHERCHEV/H/X et INDEX/EQUIV (6 fiches)' },
@@ -562,6 +562,82 @@ export const FORMULA_CATALOG_PART1 = [
       whenFormula: 'Pour afficher l\'heure de dernière actualisation d\'un tableau de bord.',
       whenVba: 'Pour figer un horodatage définitif dès qu\'un opérateur modifie une ligne (Worksheet_Change).',
       relatedOpId: 'adv_worksheet_change'
+    }
+  },
+  {
+    id: 'arrondi',
+    name: 'ARRONDI',
+    levelId: 'flvl1',
+    levelNumber: 1,
+    categoryLabel: 'Fondamentaux',
+    compatibility: 'Toutes versions Excel (Windows, Mac, Web, 365)',
+    presentation: {
+      purpose: 'Arrondir réellement un nombre (et non seulement son affichage) à un nombre précis de décimales.',
+      situations: [
+        'Facturation : éviter les écarts d\'1 centime sur les totaux de TVA en arrondissant chaque ligne à 2 décimales',
+        'Gestion de chantiers : arrondir un temps d\'intervention ou un coût au dixième près',
+        'Primes et remises : arrondir à l\'euro entier (0 décimale) ou à la dizaine (-1)'
+      ],
+      whyUseful: 'Le bouton « Diminuer les décimales » d\'Excel ne change que le visuel : Excel continue de calculer avec toutes les décimales cachées. ARRONDI change la vraie valeur stockée.',
+      advantages: ['Évite les erreurs d\'écart de centimes en comptabilité', 'Accepte 0 pour un entier ou des chiffres négatifs (-1, -2) pour arrondir à la dizaine/centaine']
+    },
+    syntax: {
+      template: '=ARRONDI(nombre; no_chiffres)',
+      args: [
+        { name: 'nombre', required: true, description: 'Nombre ou calcul à arrondir (ex. B2*1,2).' },
+        { name: 'no_chiffres', required: true, description: 'Nombre de décimales souhaité (2 pour des euros, 0 pour un entier).' }
+      ]
+    },
+    examples: [
+      { title: 'Facturation — Montant TTC exact à 2 décimales', formula: '=ARRONDI(C2*1,2; 2)', explanation: 'Arrondit réellement le TTC à 2 chiffres après la virgule.' },
+      { title: 'Devis — Arrondir à l\'euro entier', formula: '=ARRONDI(D2; 0)', explanation: 'Supprime les centimes en arrondissant à l\'entier le plus proche.' }
+    ],
+    interactiveDemo: {
+      title: 'Facturation TTC — Modifiez les valeurs HT pour tester =ARRONDI(B2*1,2;2)',
+      headers: ['Article', 'Montant HT (€)'],
+      rows: [
+        ['Maintenance trimestrielle', 149.955]
+      ],
+      editableCols: [1],
+      formula: '=ARRONDI(B2*1,2;2)',
+      resultLabel: 'Montant TTC arrondi (à 2 décimales)'
+    },
+    exercises: {
+      easy: {
+        type: 'mcq',
+        instruction: 'Pourquoi utiliser =ARRONDI(B2*1,2;2) plutôt que seulement changer le format d\'affichage à 2 décimales ?',
+        options: [
+          'ARRONDI modifie la valeur réelle utilisée ensuite dans SOMME(), évitant les écarts d\'1 centime',
+          'Le format d\'affichage supprime les formules',
+          'ARRONDI convertit le nombre en texte'
+        ],
+        correctIndex: 0,
+        explanation: 'Le format d\'affichage cache les décimales sans les supprimer ; ARRONDI garantit que la somme des lignes affichées égale exactement le total.',
+        hints: ['Pensez à ce qu\'additionne =SOMME() en comptabilité.']
+      },
+      intermediate: {
+        type: 'fill',
+        instruction: 'Complétez pour arrondir le résultat de B2/3 à 2 décimales :',
+        templateLines: ['=____(B2/3; 2)'],
+        blanks: [{ id: 'fn', label: 'Fonction', placeholder: 'ARRONDI', help: 'Fonction d\'arrondi standard', accepted: ['arrondi'] }],
+        explanation: 'ARRONDI(B2/3; 2) garde 2 décimales exactes.',
+        hints: ['ARRONDI (sans accent ni E).']
+      },
+      advanced: {
+        type: 'table_practice',
+        instruction: 'Écrivez la formule arrondissant B2 à 2 décimales :',
+        placeholder: '=ARRONDI(B2;2)',
+        acceptedAnswers: ['=ARRONDI(B2;2)', '=ARRONDI(B2; 2)'],
+        explanation: '=ARRONDI(B2;2) est exacte.',
+        hints: ['=ARRONDI(cellule; nb_decimales).']
+      }
+    },
+    vbaBridge: {
+      excelFormula: '=ARRONDI(B2*1,2;2)',
+      vbaCode: 'montantTTC = WorksheetFunction.Round(ws.Range("B2").Value * 1.2, 2)',
+      whenFormula: 'Pour calculer des montants TTC arrondis dynamiquement dans un devis ou une facture.',
+      whenVba: 'Pour appliquer un arrondi définitif dans toutes les écritures avant export comptable.',
+      relatedOpId: 'fin_vat_margin'
     }
   },
 
@@ -1468,3 +1544,4 @@ export const FORMULA_CATALOG_PART1 = [
     }
   }
 ];
+

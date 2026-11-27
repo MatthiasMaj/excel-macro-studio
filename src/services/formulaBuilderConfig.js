@@ -5,7 +5,7 @@
  * - RECHERCHEX, RECHERCHEV, INDEX + EQUIV, SIERREUR, CONCAT
  */
 
-import { analyzeAndTranslateFormula } from '../engine/excelFormulaEngine.js';
+import { analyzeAndTranslateFormula, buildGridFromTable, evaluateFrenchFormula } from '../engine/excelFormulaEngine.js';
 
 export const EXCEL_OPERATORS = [
   { value: '>=', label: 'supérieur ou égal à (>=)' },
@@ -15,6 +15,16 @@ export const EXCEL_OPERATORS = [
   { value: '=', label: 'égal à (=)' },
   { value: '<>', label: 'différent de (<>)' }
 ];
+
+export function moveBuilderItem(list, idx, delta) {
+  if (!Array.isArray(list)) return list;
+  const target = idx + delta;
+  if (idx < 0 || idx >= list.length || target < 0 || target >= list.length) return list;
+  const copy = [...list];
+  const [item] = copy.splice(idx, 1);
+  copy.splice(target, 0, item);
+  return copy;
+}
 
 function formatArgValue(raw) {
   const txt = String(raw ?? '').trim();
@@ -31,6 +41,8 @@ export const DEFAULT_BUILDER_STATE = {
   si: {
     conditions: [{ cell: 'B2', op: '>=', val: '7' }],
     combiner: 'ET',
+    orExtraEnabled: false,
+    orExtra: { cell: 'D2', op: '=', val: 'Urgent' },
     trueVal: 'Conforme',
     falseVal: 'À compléter',
     nestedEnabled: false,
@@ -69,17 +81,119 @@ export const DEFAULT_BUILDER_STATE = {
 };
 
 const BUILDER_REGISTRY = [
-  { id: 'si', name: 'SI (Simple, ET/OU ou Imbriqué)', level: 2, summary: 'Prendre une décision logique avec une ou plusieurs conditions.' },
-  { id: 'si_conditions', name: 'SI.CONDITIONS (Multi-paliers)', level: 2, summary: 'Enchaîner plusieurs seuils sans cascade de parenthèses.' },
-  { id: 'somme_si', name: 'SOMME.SI (1 critère)', level: 3, summary: 'Additionner les montants répondant à 1 critère.' },
-  { id: 'somme_si_ens', name: 'SOMME.SI.ENS (Multi-critères)', level: 3, summary: 'Additionner en combinant plusieurs colonnes critères.' },
-  { id: 'nb_si', name: 'NB.SI (Compter 1 critère)', level: 3, summary: 'Compter les lignes correspondant à un critère.' },
-  { id: 'nb_si_ens', name: 'NB.SI.ENS (Compter multi-critères)', level: 3, summary: 'Compter les lignes vérifiant plusieurs conditions.' },
-  { id: 'recherchex', name: 'RECHERCHEX (Moderne)', level: 4, summary: 'Rapatrier un champ depuis une autre table (365/2021+).' },
-  { id: 'recherchev', name: 'RECHERCHEV (Classique)', level: 4, summary: 'Chercher dans la 1re colonne et lire à droite.' },
-  { id: 'index_equiv', name: 'INDEX + EQUIV (Universel)', level: 4, summary: 'Recherche bidirectionnelle compatible toutes versions.' },
-  { id: 'sierreur', name: 'SIERREUR (Protection)', level: 2, summary: 'Remplacer #DIV/0! ou #N/A par un repli propre.' },
-  { id: 'concat', name: 'CONCAT (Assemblage texte)', level: 5, summary: 'Assembler cellules et textes séparateurs bout à bout.' }
+  {
+    id: 'si',
+    name: 'SI (Simple, ET/OU, ET+OU ou Imbriqué)',
+    level: 2,
+    summary: 'Prendre une décision logique avec une ou plusieurs conditions.',
+    sampleHeaders: ['Technicien', 'Heures (B2)', 'Statut (C2)', 'Priorité (D2)', 'Client (E2)'],
+    sampleRows: [['Paul', 8, 'Validé', 'Normal', 'REF-102']]
+  },
+  {
+    id: 'si_conditions',
+    name: 'SI.CONDITIONS (Multi-paliers)',
+    level: 2,
+    summary: 'Enchaîner plusieurs seuils sans cascade de parenthèses.',
+    sampleHeaders: ['Code', 'Score (B2)'],
+    sampleRows: [['OBS-1', 8.5]]
+  },
+  {
+    id: 'somme_si',
+    name: 'SOMME.SI (1 critère)',
+    level: 3,
+    summary: 'Additionner les montants répondant à 1 critère.',
+    sampleHeaders: ['Facture', 'Statut (B)', 'Montant (C)'],
+    sampleRows: [
+      ['F1', 'Payé', 450],
+      ['F2', 'En attente', 200],
+      ['F3', 'Payé', 350]
+    ]
+  },
+  {
+    id: 'somme_si_ens',
+    name: 'SOMME.SI.ENS (Multi-critères)',
+    level: 3,
+    summary: 'Additionner en combinant plusieurs colonnes critères.',
+    sampleHeaders: ['Dossier', 'Salarié (B)', 'Statut (C)', 'Heures (D)'],
+    sampleRows: [
+      ['D1', 'Marc', 'Clôturée', 6],
+      ['D2', 'Paul', 'Clôturée', 4],
+      ['D3', 'Marc', 'Clôturée', 5]
+    ]
+  },
+  {
+    id: 'nb_si',
+    name: 'NB.SI (Compter 1 critère)',
+    level: 3,
+    summary: 'Compter les lignes correspondant à un critère.',
+    sampleHeaders: ['Article', 'Libellé', 'Stock (C)'],
+    sampleRows: [
+      ['A1', 'Vanne', 4],
+      ['A2', 'Filtre', 18],
+      ['A3', 'Joint', 6]
+    ]
+  },
+  {
+    id: 'nb_si_ens',
+    name: 'NB.SI.ENS (Compter multi-critères)',
+    level: 3,
+    summary: 'Compter les lignes vérifiant plusieurs conditions.',
+    sampleHeaders: ['Intervention', 'Salarié (B)', 'Statut (C)'],
+    sampleRows: [
+      ['I1', 'Marc', 'En cours'],
+      ['I2', 'Marc', 'Clôturée'],
+      ['I3', 'Marc', 'En cours']
+    ]
+  },
+  {
+    id: 'recherchex',
+    name: 'RECHERCHEX (Moderne)',
+    level: 4,
+    summary: 'Rapatrier un champ depuis une autre table (365/2021+).',
+    sampleHeaders: ['Clé (A)', 'Nom client (B)', 'C', 'D', 'Cherché (E2)'],
+    sampleRows: [
+      ['CLI-01', 'Alpha SAS', '', '', 'CLI-02'],
+      ['CLI-02', 'Beta Industrie', '', '', '']
+    ]
+  },
+  {
+    id: 'recherchev',
+    name: 'RECHERCHEV (Classique)',
+    level: 4,
+    summary: 'Chercher dans la 1re colonne et lire à droite.',
+    sampleHeaders: ['Clé (A)', 'Nom client (B)', 'C', 'D', 'Cherché (E2)'],
+    sampleRows: [
+      ['CLI-01', 'Alpha SAS', 1200, 'Nord', 'CLI-02'],
+      ['CLI-02', 'Beta Industrie', 850, 'Sud', '']
+    ]
+  },
+  {
+    id: 'index_equiv',
+    name: 'INDEX + EQUIV (Universel)',
+    level: 4,
+    summary: 'Recherche bidirectionnelle compatible toutes versions.',
+    sampleHeaders: ['Nom client (A)', 'Clé (B)', 'C', 'D', 'Cherché (E2)'],
+    sampleRows: [
+      ['Alpha SAS', 'CLI-01', '', '', 'CLI-02'],
+      ['Beta Industrie', 'CLI-02', '', '', '']
+    ]
+  },
+  {
+    id: 'sierreur',
+    name: 'SIERREUR (Protection)',
+    level: 2,
+    summary: 'Remplacer #DIV/0! ou #N/A par un repli propre.',
+    sampleHeaders: ['Poste', 'Numérateur (B2)', 'Diviseur (C2)'],
+    sampleRows: [['Ratio', 120, 0]]
+  },
+  {
+    id: 'concat',
+    name: 'CONCAT (Assemblage texte)',
+    level: 5,
+    summary: 'Assembler cellules et textes séparateurs bout à bout.',
+    sampleHeaders: ['Prénom (A2)', 'Nom (B2)'],
+    sampleRows: [['Julie', 'Martin']]
+  }
 ];
 
 const CUSTOM_BUILDERS = new Map();
@@ -112,10 +226,14 @@ export function buildVisualFormula(templateId, rawConfig = {}) {
         const conds = Array.isArray(cfg.conditions) && cfg.conditions.length > 0
           ? cfg.conditions
           : [{ cell: cfg.cell || 'B2', op: cfg.op || '>=', val: cfg.val ?? '7' }];
-        const testExpr =
+        let testExpr =
           conds.length === 1
             ? buildConditionExpr(conds[0])
             : `${cfg.combiner === 'OU' ? 'OU' : 'ET'}(${conds.map(buildConditionExpr).join(';')})`;
+        if (cfg.combiner === 'ET_OU' && cfg.orExtra) {
+          const baseCond = conds.length === 1 ? buildConditionExpr(conds[0]) : `ET(${conds.map(buildConditionExpr).join(';')})`;
+          testExpr = `OU(${baseCond};${buildConditionExpr(cfg.orExtra)})`;
+        }
         const tVal = formatArgValue(cfg.trueVal ?? 'Conforme');
         const fVal = cfg.nestedEnabled
           ? `SI(${buildConditionExpr({ cell: cfg.nestedCell, op: cfg.nestedOp, val: cfg.nestedVal })};${formatArgValue(cfg.nestedTrue)};${formatArgValue(cfg.falseVal)})`
@@ -180,12 +298,26 @@ export function buildVisualFormula(templateId, rawConfig = {}) {
     }
   }
 
+  const meta = BUILDER_REGISTRY.find((m) => m.id === templateId);
+  const sampleEval = meta?.sampleHeaders && !/!/i.test(formula)
+    ? evaluateFrenchFormula(formula, buildGridFromTable(meta.sampleHeaders, meta.sampleRows || []))
+    : /Clients!/i.test(formula)
+      ? evaluateFrenchFormula(
+          formula.replace(/Clients!/gi, ''),
+          buildGridFromTable(meta?.sampleHeaders || [], meta?.sampleRows || [])
+        )
+      : null;
+
   const analysis = analyzeAndTranslateFormula(formula);
   return {
     formula,
     explanation: analysis.beginnerSummary,
     steps: analysis.stepByStep,
     vbaEquivalent: analysis.vbaBridgeSnippet,
-    syntaxErrors: analysis.syntaxErrors
+    syntaxErrors: analysis.syntaxErrors,
+    sampleEval,
+    sampleHeaders: meta?.sampleHeaders || [],
+    sampleRows: meta?.sampleRows || []
   };
 }
+
