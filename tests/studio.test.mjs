@@ -612,12 +612,14 @@ test('Situations professionnelles (6 métiers), Constructeur ET+OU & Analyseur p
   assert.ok(suggestedNames.includes('SOMME.SI.ENS'));
 });
 
-test('Contrôle qualité pédagogique : les 27 leçons (15 Excel + 12 VBA) possèdent introduction, transitions, démo détaillée et briefs uniques', () => {
+test('Contrôle qualité pédagogique : les 27 leçons (15 Excel + 12 VBA) possèdent introduction, transitions, démo détaillée et briefs uniques en vouvoiement', () => {
   const seenIntros = new Set();
+  const tutoiementRx = /(?<![\p{L}\p{N}_])(?:tu|ton|ta|tes|toi|te)(?![\p{L}\p{N}_])|(?<![\p{L}\p{N}_])t'/iu;
 
   for (const ch of EXCEL_CURRICULUM_CHAPTERS) {
     const c = EXCEL_PEDAGOGY_COACH[ch.id];
     assert.ok(c, `Coaching manquant pour chapitre Excel : ${ch.id}`);
+    assert.equal(tutoiementRx.test(JSON.stringify(c)), false, `Tutoiement détecté dans ${ch.id}`);
     assert.ok(c.intro?.paragraphs?.length >= 2);
     const introJoined = c.intro.paragraphs.join(' ');
     assert.ok(introJoined.length >= 220, `Introduction trop courte pour ${ch.id}`);
@@ -632,6 +634,7 @@ test('Contrôle qualité pédagogique : les 27 leçons (15 Excel + 12 VBA) poss�
   for (const ch of getEnrichedVbaChapters()) {
     const c = VBA_PEDAGOGY_COACH[ch.id];
     assert.ok(c, `Coaching manquant pour chapitre VBA : ${ch.id}`);
+    assert.equal(tutoiementRx.test(JSON.stringify(c)), false, `Tutoiement détecté dans ${ch.id}`);
     assert.ok(c.intro?.paragraphs?.length >= 2);
     const introJoined = c.intro.paragraphs.join(' ');
     assert.ok(introJoined.length >= 220, `Introduction trop courte pour ${ch.id}`);

@@ -206,7 +206,7 @@ export function mountExerciseWidget(container, {
 
     const fbHtml = fb
       ? `<div class="alert-banner ${fb.ok ? 'alert-success' : 'alert-warning'}" role="status">
-           <strong>${fb.ok ? 'Réussi ! Pourquoi ta réponse est correcte :' : fb.incomplete ? 'Réponse incomplète :' : 'Pas encore exact — analysons ton raisonnement :'}</strong>
+           <strong>${fb.ok ? 'Réussi ! Pourquoi votre réponse est correcte :' : fb.incomplete ? 'Réponse incomplète :' : 'Pas encore exact — analysons votre raisonnement :'}</strong>
            <span>${escapeHtml(fb.message)}</span>
            ${!fb.incomplete && fb.ok && (fb.explanation || exercise.explanation) ? `<span class="field-hint">${escapeHtml(fb.explanation || exercise.explanation)}</span>` : ''}
            ${!fb.ok && !fb.incomplete && guidanceCoach ? `<span><strong>Piste du formateur :</strong> ${escapeHtml(guidanceCoach)}</span>` : ''}
@@ -240,7 +240,7 @@ export function mountExerciseWidget(container, {
         ${
           brief
             ? `<div class="exercise-brief-box stack-sm">
-                 <strong>Avant de te lancer :</strong>
+                 <strong>Avant de vous lancer :</strong>
                  <ul style="margin:0.2rem 0 0;padding-left:1.15rem;font-size:0.86rem">
                    ${brief.mobilize ? `<li><strong>À mobiliser :</strong> ${escapeHtml(brief.mobilize)}</li>` : ''}
                    ${brief.observe ? `<li><strong>Ce qu'il faut observer :</strong> ${escapeHtml(brief.observe)}</li>` : ''}

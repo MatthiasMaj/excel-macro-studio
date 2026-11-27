@@ -1,37 +1,35 @@
 /**
  * Coaching pédagogique complet des 12 chapitres du Parcours B (Automatiser Excel avec VBA).
- * Chaque leçon accompagne un grand débutant comme un formateur à ses côtés :
- * introduction concrète, transitions continues, décodage ligne par ligne des mots-clés VBA
- * et explication de ce qui se passe réellement dans Excel lors de l'exécution.
+ * Rédigé intégralement en vouvoiement avec un ton de formateur patient et concret.
  */
 
 export const VBA_PEDAGOGY_COACH = {
   ch01_premiers_pas: {
     intro: {
       paragraphs: [
-        'Imagine que tu dois effectuer chaque matin les mêmes 15 clics de vérification, de mise en forme et d\'export sur un fichier NovaTech. Même en maîtrisant Excel, répéter manuellement ces manipulations finit par prendre beaucoup de temps et crée un risque d\'oubli.',
-        'VBA (Visual Basic for Applications) est un petit atelier intégré directement dans Excel : il te permet d\'écrire une liste d\'instructions simples que tu peux relancer d\'un seul clic, exactement comme un robot fidèle. Pas besoin d\'être programmeur pour démarrer : une macro de 5 lignes suit exactement la logique de ce que tu fais déjà à la souris.',
-        'Dans cette toute première leçon, tu ne vas pas écrire un programme complexe : nous allons simplement ouvrir la fenêtre secrète de VBA (Alt + F11), comprendre la forme minimale d\'une macro, afficher un petit message de bienvenue sur l\'écran, et surtout apprendre la règle d\'or pour ne jamais perdre ton code en enregistrant au format .xlsm.'
+        'Imaginez que vous devez effectuer chaque matin les mêmes 15 clics de vérification, de mise en forme et d\'export sur un fichier NovaTech. Même en maîtrisant Excel, répéter manuellement ces manipulations finit par prendre beaucoup de temps et crée un risque d\'oubli.',
+        'VBA (Visual Basic for Applications) est un petit atelier intégré directement dans Excel : il vous permet d\'écrire une liste d\'instructions simples que vous pouvez relancer d\'un seul clic, exactement comme un robot fidèle. Pas besoin d\'être programmeur pour démarrer : une macro de 5 lignes suit exactement la logique de ce que vous faites déjà à la souris.',
+        'Dans cette toute première leçon, vous n\'allez pas écrire un programme complexe : nous allons simplement ouvrir la fenêtre secrète de VBA (Alt + F11), comprendre la forme minimale d\'une macro, afficher un petit message de bienvenue sur l\'écran, et surtout apprendre la règle d\'or pour ne jamais perdre votre code en enregistrant au format .xlsm.'
       ],
       whatYouWillLearn: [
         'Ouvrir l\'éditeur VBA (Alt + F11 ou Option + F11 sur Mac) et créer un Module propre.',
         'Comprendre pourquoi il faut toujours écrire Option Explicit en haut, puis encadrer son code entre Public Sub ...() et End Sub.',
-        'Enregistrer obligatoirement le fichier au format .xlsm pour conserver tes macros.'
+        'Enregistrer obligatoirement le fichier au format .xlsm pour conserver vos macros.'
       ],
-      concreteOutcome: 'À la fin de ce chapitre, tu auras lancé ta toute première macro fonctionnelle dans Excel et évité les deux erreurs classiques des débutants (perte du code en .xlsx et fautes de frappe non détectées).'
+      concreteOutcome: 'À la fin de ce chapitre, vous aurez lancé votre toute première macro fonctionnelle dans Excel et évité les deux erreurs classiques des débutants (perte du code en .xlsx et fautes de frappe non détectées).'
     },
     transitions: {
-      toTheory: 'Maintenant que tu sais pourquoi VBA sert à confier les tâches répétitives à Excel, voyons à quoi ressemblent les mots-clés de base et où ranger une macro.',
-      toDemo: 'Regardons ensemble ta première macro de 4 lignes en VBA : chaque ligne a un rôle précis, y compris les lignes vertes précédées d\'une apostrophe.',
-      toExercises: 'Tu as vu comment s\'ouvre, s\'écrit et s\'enregistre une macro. Mettons maintenant ces gestes dans le bon ordre et vérifions la règle des extensions de fichiers.',
-      toPractice: 'C\'est le moment de pratiquer dans le vrai classeur NovaTech en tapant et en exécutant cette première macro sur ton ordinateur.'
+      toTheory: 'Maintenant que vous savez pourquoi VBA sert à confier les tâches répétitives à Excel, voyons à quoi ressemblent les mots-clés de base et où ranger une macro.',
+      toDemo: 'Regardons ensemble votre première macro de 4 lignes en VBA : chaque ligne a un rôle précis, y compris les lignes vertes précédées d\'une apostrophe.',
+      toExercises: 'Vous avez vu comment s\'ouvre, s\'écrit et s\'enregistre une macro. Mettez maintenant ces gestes dans le bon ordre et vérifiez la règle des extensions de fichiers.',
+      toPractice: 'C\'est le moment de pratiquer dans le vrai classeur NovaTech en saisissant et en exécutant cette première macro sur votre ordinateur.'
     },
     demoWalkthrough: {
       goal: 'Créer une macro minimale fiable qui compte les feuilles du classeur et affiche un message clair à l\'utilisateur.',
       steps: [
-        '1. Tout en haut du module, Option Explicit agit comme un correcteur orthographique : si tu fais une faute de frappe dans un nom de variable plus tard, VBA te prévient avant même d\'exécuter.',
+        '1. Tout en haut du module, Option Explicit agit comme un correcteur orthographique : si vous faites une faute de frappe dans un nom de variable plus tard, VBA vous prévient avant même d\'exécuter.',
         '2. Public Sub AccueilNovaTech() ouvre la macro (Sub = sous-programme) et la rend visible dans la liste d\'Excel (Alt + F8). Ses instructions sont décalées vers la droite pour être faciles à lire.',
-        '3. Toutes les lignes commençant par une apostrophe (\') apparaissent en vert : ce sont des commentaires humains ignorés par l\'ordinateur. Utilise-les sans modération pour te souvenir de ce que fait ton code.',
+        '3. Toutes les lignes commençant par une apostrophe (\') apparaissent en vert : ce sont des commentaires humains ignorés par l\'ordinateur. Utilisez-les sans modération pour vous souvenir de ce que fait votre code.',
         '4. L\'instruction MsgBox ouvre une petite fenêtre d\'information affichant le texte assemblé avec « & » et le nombre d\'onglets calculé par ThisWorkbook.Worksheets.Count, avant que End Sub ne referme proprement la macro.'
       ],
       lineByLineGuide: [
@@ -41,7 +39,7 @@ export const VBA_PEDAGOGY_COACH = {
         { token: 'ThisWorkbook.Worksheets.Count', meaning: 'Lit le classeur qui porte la macro (ThisWorkbook), regarde ses feuilles (Worksheets) et compte combien il y en a (Count).' },
         { token: 'MsgBox "...", vbInformation', meaning: 'Affiche une boîte de dialogue informative avec une icône « i » bleue.' }
       ],
-      whatHappensAtRuntime: 'Quand tu appuies sur F5 ou lances AccueilNovaTech, Excel ne modifie aucune cellule : il compte en une fraction de seconde les 4 onglets présents dans ce classeur et ouvre à l\'écran la fenêtre « Classeur prêt : 4 feuille(s) détectée(s). » jusqu\'à ce que tu cliques sur OK.',
+      whatHappensAtRuntime: 'Quand vous appuyez sur F5 ou lancez AccueilNovaTech, Excel ne modifie aucune cellule : il compte en une fraction de seconde les 4 onglets présents dans ce classeur et ouvre à l\'écran la fenêtre « Classeur prêt : 4 feuille(s) détectée(s). » jusqu\'à ce que vous cliquiez sur OK.',
       keyTakeaway: 'Toujours Option Explicit tout en haut, du code propre entre Sub et End Sub, et enregistrer le fichier en .xlsm.'
     },
     exerciseBrief: {
@@ -52,7 +50,7 @@ export const VBA_PEDAGOGY_COACH = {
       },
       autonomous: {
         mobilize: 'La différence capitale entre .xlsx (sans macro) et .xlsm (avec macros autorisées).',
-        observe: 'Ce que fait Excel aux modules VBA si tu persistes à sauvegarder en .xlsx standard.',
+        observe: 'Ce que fait Excel aux modules VBA si vous persistez à sauvegarder en .xlsx standard.',
         expected: 'Déterminer si les macros survivent à un enregistrement .xlsx classique.'
       }
     }
@@ -61,29 +59,29 @@ export const VBA_PEDAGOGY_COACH = {
   ch02_feuilles_cellules: {
     intro: {
       paragraphs: [
-        'Quand tu utilises l\'enregistreur automatique de macros d\'Excel pour découvrir le code, il écrit sans arrêt des `.Select` et `ActiveSheet` partout : il clique physiquement sur l\'onglet, clique sur la case G1, tape, clique sur H1... Résultat : l\'écran clignote, la macro est lente et elle se trompe d\'onglet dès que tu n\'es pas sur la bonne feuille au départ !',
+        'Quand vous utilisez l\'enregistreur automatique de macros d\'Excel pour découvrir le code, il écrit sans arrêt des `.Select` et `ActiveSheet` partout : il clique physiquement sur l\'onglet, clique sur la case G1, saisit, clique sur H1... Résultat : l\'écran clignote, la macro est lente et elle se trompe d\'onglet dès que vous n\'êtes pas sur la bonne feuille au départ !',
         'Pour automatiser Excel proprement, il suffit de comprendre comment VBA désigne un endroit précis sans bouger la souris. VBA parle aux objets du plus grand au plus petit : d\'abord le Classeur (`ThisWorkbook`), puis la Feuille (`Worksheets("Ventes_Brutes")`), puis la Cellule ou Plage (`Range("G1")`).',
-        'En mettant la feuille dans un petit raccourci appelé `ws` grâce à `Set ws = ...`, tu peux écrire des titres, insérer des formules ou mettre des nombres en gras en une fraction de seconde, même si l\'utilisateur est en train de regarder une tout autre feuille.'
+        'En mettant la feuille dans un petit raccourci appelé `ws` grâce à `Set ws = ...`, vous pouvez écrire des titres, insérer des formules ou mettre des nombres en gras en une fraction de seconde, même si l\'utilisateur est en train de regarder une tout autre feuille.'
       ],
       whatYouWillLearn: [
         'Désigner explicitement une feuille avec `Dim ws As Worksheet` et `Set ws = ThisWorkbook.Worksheets("...")` sans jamais utiliser `.Select`.',
         'Lire ou écrire une valeur avec `.Value` et une formule avec `.Formula` (ou `.FormulaLocal` en français).',
         'Mettre en forme une plage directement par code (`.Font.Bold = True` et `.NumberFormat`).'
       ],
-      concreteOutcome: 'Tu sauras écrire une macro qui prépare proprement des colonnes TVA/TTC sur l\'onglet Ventes_Brutes, quel que soit l\'onglet affiché au moment du clic.'
+      concreteOutcome: 'Vous saurez écrire une macro qui prépare proprement des colonnes TVA/TTC sur l\'onglet Ventes_Brutes, quel que soit l\'onglet affiché au moment du clic.'
     },
     transitions: {
-      toTheory: 'Voyons comment fonctionnent concrètement « Objet », « Propriété » et « Méthode », et pourquoi on évite `.Select` comme la peste.',
-      toDemo: 'Regardons maintenant la macro `PreparerEnTetesTVA` ligne par ligne : observe comme tout passe proprement par la variable `ws`.',
-      toExercises: 'Tu as vu comment écrire dans une cellule et la formater. Complète maintenant une écriture similaire puis entraîne-toi à taper une affectation directe.',
-      toPractice: 'Passe dans le classeur NovaTech pour automatiser l\'ajout des colonnes TVA et TTC sans un seul `.Select`.'
+      toTheory: 'Voyons comment fonctionnent concrètement « Objet », « Propriété » et « Méthode », et pourquoi on évite `.Select` autant que possible.',
+      toDemo: 'Regardons maintenant la macro `PreparerEnTetesTVA` ligne par ligne : observez comme tout passe proprement par la variable `ws`.',
+      toExercises: 'Vous avez vu comment écrire dans une cellule et la formater. Complétez maintenant une écriture similaire puis entraînez-vous à saisir une affectation directe.',
+      toPractice: 'Passez dans le classeur NovaTech pour automatiser l\'ajout des colonnes TVA et TTC sans un seul `.Select`.'
     },
     demoWalkthrough: {
       goal: 'Préparer deux colonnes de calcul TVA/TTC sur l\'onglet Ventes_Brutes avec en-têtes en gras et format euro propre.',
       steps: [
         '1. `Dim ws As Worksheet` réserve une boîte étiquetée `ws` qui servira de raccourci vers une feuille de calcul Excel.',
         '2. `Set ws = ThisWorkbook.Worksheets("Ventes_Brutes")` relie concrètement ce raccourci `ws` à l\'onglet « Ventes_Brutes » du classeur actuel (le mot-clé `Set` est obligatoire pour les objets comme une feuille ou une plage).',
-        '3. `ws.Range("G1").Value = "Montant_TVA"` écrit instantanément le texte dans la case G1 de Ventes_Brutes, même si tu as laissé l\'onglet Clients ouvert devant toi.',
+        '3. `ws.Range("G1").Value = "Montant_TVA"` écrit instantanément le texte dans la case G1 de Ventes_Brutes, même si vous avez laissé l\'onglet Clients ouvert devant vous.',
         '4. Les deux dernières lignes montrent deux propriétés très utiles sur une plage : `.Font.Bold = True` met les en-têtes G1:H1 en gras, et `.NumberFormat = "#,##0.00 €"` applique un affichage monétaire propre.'
       ],
       lineByLineGuide: [
@@ -113,29 +111,29 @@ export const VBA_PEDAGOGY_COACH = {
   ch03_variables_taille: {
     intro: {
       paragraphs: [
-        'Imagine que tu écris une macro aujourd\'hui pour traiter les 8 commandes de NovaTech en écrivant `Range("A2:D8")` en dur dans ton code. Le mois prochain, il y a 420 commandes dans le tableau : ta macro s\'arrête toujours à la ligne 8 et ignore les 412 lignes suivantes !',
-        'Pour qu\'une automatisation dure dans le temps, elle doit s\'adapter toute seule à la taille réelle du tableau. Pour cela, on a besoin de « variables » : imagine des petites boîtes nommées en mémoire — une boîte pour un nombre entier (`Long` pour compter les lignes), une boîte pour un montant à virgule (`Double`), une boîte pour du texte (`String`).',
-        'Grâce à une instruction célèbre que tous les développeurs Excel utilisent (`End(xlUp)`), ta variable va mesurer automatiquement le numéro de la dernière ligne remplie avant de travailler dessus.'
+        'Imaginez que vous écrivez une macro aujourd\'hui pour traiter les 8 commandes de NovaTech en écrivant `Range("A2:D8")` en dur dans votre code. Le mois prochain, il y a 420 commandes dans le tableau : votre macro s\'arrête toujours à la ligne 8 et ignore les 412 lignes suivantes !',
+        'Pour qu\'une automatisation dure dans le temps, elle doit s\'adapter toute seule à la taille réelle du tableau. Pour cela, on a besoin de « variables » : imaginez des petites boîtes nommées en mémoire — une boîte pour un nombre entier (`Long` pour compter les lignes), une boîte pour un montant à virgule (`Double`), une boîte pour du texte (`String`).',
+        'Grâce à une instruction célèbre que tous les développeurs Excel utilisent (`End(xlUp)`), votre variable va mesurer automatiquement le numéro de la dernière ligne remplie avant de travailler dessus.'
       ],
       whatYouWillLearn: [
         'Choisir le bon type de variable avec `Dim` (`Long` pour les numéros de ligne, `Double` pour les prix, `String` pour les textes, `Worksheet` pour les onglets).',
         'Savoir quand mettre `Set` (variables objets comme `Worksheet` / `Range`) et quand ne PAS mettre `Set` (nombres, textes).',
         'Calculer dynamiquement la vraie dernière ligne d\'une colonne grâce à `ws.Cells(ws.Rows.Count, 1).End(xlUp).Row`.'
       ],
-      concreteOutcome: 'Tes macros détecteront désormais toutes seules si le fichier compte 8, 500 ou 80 000 lignes sans jamais avoir à retoucher le code.'
+      concreteOutcome: 'Vos macros détecteront désormais toutes seules si le fichier compte 8, 500 ou 80 000 lignes sans jamais avoir à retoucher le code.'
     },
     transitions: {
       toTheory: 'Voyons la liste des types de variables les plus utiles en gestion et comment fonctionne l\'astuce qui part du tout bas de la feuille pour trouver la dernière ligne.',
       toDemo: 'Regardons la macro `CompterVentesDynamiquement` pour voir comment `Dim` et `End(xlUp)` travaillent ensemble.',
-      toExercises: 'Une erreur très courante consiste à oublier `Set` sur un objet : repère ce piège dans l\'exercice puis vérifie la règle sur `Long` vs `Integer`.',
-      toPractice: 'Applique maintenant la détection dynamique sur le classeur NovaTech pour afficher la taille réelle de chaque onglet.'
+      toExercises: 'Une erreur très courante consiste à oublier `Set` sur un objet : repérez ce piège dans l\'exercice puis vérifiez la règle sur `Long` vs `Integer`.',
+      toPractice: 'Appliquez maintenant la détection dynamique sur le classeur NovaTech pour afficher la taille réelle de chaque onglet.'
     },
     demoWalkthrough: {
       goal: 'Mesurer automatiquement le nombre de lignes remplies en colonne A (même si le tableau grandit chaque jour) et l\'afficher dans un message.',
       steps: [
         '1. `Dim ws As Worksheet` prépare un conteneur d\'objet feuille, et `Dim lastRow As Long` prépare un conteneur de nombre entier capable de monter jusqu\'à plus d\'un million de lignes.',
         '2. `Set ws = ThisWorkbook.Worksheets("Ventes_Brutes")` attache l\'objet feuille à `ws` avec `Set`.',
-        '3. Regarde attentivement `lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row` : `ws.Cells(ws.Rows.Count, 1)` se place tout en bas en A1048576 ; `.End(xlUp)` remonte comme si tu faisais Ctrl + Flèche Haut jusqu\'à la première case pleine rencontrée ; `.Row` lit son numéro de ligne et le range dans `lastRow` !',
+        '3. Regardez attentivement `lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row` : `ws.Cells(ws.Rows.Count, 1)` se place tout en bas en A1048576 ; `.End(xlUp)` remonte comme si vous faisiez Ctrl + Flèche Haut jusqu\'à la première case pleine rencontrée ; `.Row` lit son numéro de ligne et le range dans `lastRow` !',
         '4. `MsgBox "Dernière ligne détectée : " & lastRow` colle le texte et la valeur rangée dans `lastRow` à l\'aide de `&`.'
       ],
       lineByLineGuide: [
@@ -144,14 +142,14 @@ export const VBA_PEDAGOGY_COACH = {
         { token: 'ws.Cells(ligne, 1)', meaning: 'Cible la colonne 1 (= A) à la ligne indiquée. En VBA, `Cells` fonctionne très bien avec des variables.' },
         { token: '.End(xlUp).Row', meaning: 'Remonte jusqu\'à la dernière cellule non vide et renvoie son numéro de ligne.' }
       ],
-      whatHappensAtRuntime: 'Si Ventes_Brutes est remplie de la ligne 1 à la ligne 8, Excel part d\'en bas, remonte jusqu\'en A8, lit 8, range 8 dans `lastRow` (sans `Set` car 8 est un simple nombre) et affiche « Dernière ligne détectée : 8 ». Si tu ajoutes demain 20 lignes, elle affichera 28.',
+      whatHappensAtRuntime: 'Si Ventes_Brutes est remplie de la ligne 1 à la ligne 8, Excel part d\'en bas, remonte jusqu\'en A8, lit 8, range 8 dans `lastRow` (sans `Set` car 8 est un simple nombre) et affiche « Dernière ligne détectée : 8 ». Si vous ajoutez demain 20 lignes, elle affichera 28.',
       keyTakeaway: 'Toujours `Long` pour les lignes, toujours `Set` pour les objets (`Worksheet`/`Range`), jamais `Set` pour les nombres/textes, et `End(xlUp).Row` pour trouver la fin du tableau.'
     },
     exerciseBrief: {
       guided: {
         mobilize: 'La règle du mot-clé `Set` pour affecter un objet `Worksheet`.',
-        observe: 'Examine chaque instruction ligne par ligne et demande-toi si la variable à gauche du `=` est un simple nombre ou un objet Excel.',
-        expected: 'Repérer la ligne qui tente d\'assigner une feuille sans `Set` (et explique pourquoi l\'erreur se produit).'
+        observe: 'Examinez chaque instruction ligne par ligne et demandez-vous si la variable à gauche du `=` est un simple nombre ou un objet Excel.',
+        expected: 'Repérer la ligne qui tente d\'assigner une feuille sans `Set` (et comprendre pourquoi l\'erreur se produit).'
       },
       autonomous: {
         mobilize: 'Les limites numériques des types entiers en VBA (`Integer` vs `Long`).',
@@ -164,22 +162,22 @@ export const VBA_PEDAGOGY_COACH = {
   ch04_conditions_alertes: {
     intro: {
       paragraphs: [
-        'Imagine que tu gères le stock de pièces de maintenance chez NovaTech : chaque ligne du tableau indique un stock initial, des entrées, des sorties et un seuil critique en dessous duquel il faut impérativement recommander. Parcourir ce tableau à l\'œil nu ligne par ligne prend du temps et laisse passer des ruptures coûteuses.',
+        'Imaginez que vous gérez le stock de pièces de maintenance chez NovaTech : chaque ligne du tableau indique un stock initial, des entrées, des sorties et un seuil critique en dessous duquel il faut impérativement recommander. Parcourir ce tableau à l\'œil nu ligne par ligne prend du temps et laisse passer des ruptures coûteuses.',
         'Une formule `=SI(...)` sait déjà afficher le texte « ALERTE », mais une macro VBA peut aller encore plus loin : elle calcule le stock réel disponible, teste s\'il descend sous le seuil minimal, puis écrit « ALERTE » ET peint automatiquement la case en rouge doux pour qu\'elle saute aux yeux (ou inscrit « OK » sinon).',
-        'Cette logique conditionnelle — « SI cette règle est vraie ALORS fais ceci, SINON fais cela » — est le cerveau de presque toutes les automatisations professionnelles. Dans cette leçon, tu vas apprendre à traduire une règle métier en instructions `If ... Then ... Else ... End If` lisibles presque comme du français.'
+        'Cette logique conditionnelle — « SI cette règle est vraie ALORS faites ceci, SINON faites cela » — est le cerveau de presque toutes les automatisations professionnelles. Dans cette leçon, vous allez apprendre à traduire une règle métier en instructions `If ... Then ... Else ... End If` lisibles presque comme du français.'
       ],
       whatYouWillLearn: [
         'Construire un test décisionnel clair avec `If ... Then ... Else ... End If` et combiner des critères avec `And` / `Or`.',
         'Utiliser `Select Case` dès qu\'un champ peut prendre 3, 4 ou 5 valeurs différentes pour garder un code aéré.',
         'Mettre une cellule en couleur automatiquement grâce à `.Interior.Color = RGB(rouge, vert, bleu)`.'
       ],
-      concreteOutcome: 'Tu sauras automatiser des alertes métier visuelles et fiables (stocks bas, remises, relances) dès qu\'une règle conditionnelle est franchie.'
+      concreteOutcome: 'Vous saurez automatiser des alertes métier visuelles et fiables (stocks bas, remises, relances) dès qu\'une règle conditionnelle est franchie.'
     },
     transitions: {
-      toTheory: 'Tu comprends maintenant pourquoi les conditions servent de feu d\'aiguillage à une macro. Voyons comment s\'écrivent exactement les tests `If / ElseIf / Select Case` et le code des couleurs RGB.',
+      toTheory: 'Vous comprenez maintenant pourquoi les conditions servent de feu d\'aiguillage à une macro. Voyons comment s\'écrivent exactement les tests `If / ElseIf / Select Case` et le code des couleurs RGB.',
       toDemo: 'Passons maintenant au concret : lisons ensemble la macro `AlerterLigneStock` instruction par instruction pour voir comment elle lit les cellules, fait son calcul, prend sa décision et colore la case.',
-      toExercises: 'Tu as suivi toute la logique du stock : complète maintenant une condition `If ... Then ... Else ... End If` similaire, puis associe chaque situation à sa structure VBA.',
-      toPractice: 'Applique maintenant ce mécanisme sur l\'ensemble de l\'onglet Stocks de NovaTech et teste le résultat sur tes vraies lignes.'
+      toExercises: 'Vous avez suivi toute la logique du stock : complétez maintenant une condition `If ... Then ... Else ... End If` similaire, puis associez chaque situation à sa structure VBA.',
+      toPractice: 'Appliquez maintenant ce mécanisme sur l\'ensemble de l\'onglet Stocks de NovaTech et testez le résultat sur vos vraies lignes.'
     },
     demoWalkthrough: {
       goal: 'Calculer le stock disponible d\'une ligne, le comparer au seuil minimum, puis écrire et colorer le résultat automatiquement.',
@@ -195,8 +193,8 @@ export const VBA_PEDAGOGY_COACH = {
         { token: '.Interior.Color = RGB(255, 199, 206)', meaning: 'Change la couleur de fond (Interior) de la cellule en combinant Rouge, Vert et Bleu (de 0 à 255).' },
         { token: 'Else / End If', meaning: '`Else` ouvre le chemin alternatif si faux ; `End If` est obligatoire pour refermer tout bloc `If` sur plusieurs lignes.' }
       ],
-      whatHappensAtRuntime: 'À l\'exécution, si C2=10, D2=2, E2=9 et F2=5 : VBA calcule 10+2-9 = 3. Comme 3 <= 5 est VRAI, la case H2 affiche « ALERTE » sur fond rouge doux. Si tu montes ensuite D2 à 8, le calcul donne 9 (> 5) : au lancement suivant, VBA prend le chemin `Else` et écrit « OK ».',
-      keyTakeaway: 'Chaque bloc `If ... Then` multi-lignes doit impérativement se terminer par `End If`. Utilise `And` (toutes conditions vraies) ou `Or` (au moins une vraie), et `Select Case` si tu testes plus de 3 cas sur une même valeur.'
+      whatHappensAtRuntime: 'À l\'exécution, si C2=10, D2=2, E2=9 et F2=5 : VBA calcule 10+2-9 = 3. Comme 3 <= 5 est VRAI, la case H2 affiche « ALERTE » sur fond rouge doux. Si vous montez ensuite D2 à 8, le calcul donne 9 (> 5) : au lancement suivant, VBA prend le chemin `Else` et écrit « OK ».',
+      keyTakeaway: 'Chaque bloc `If ... Then` multi-lignes doit impérativement se terminer par `End If`. Utilisez `And` (toutes conditions vraies) ou `Or` (au moins une vraie), et `Select Case` si vous testez plus de 3 cas sur une même valeur.'
     },
     exerciseBrief: {
       guided: {
@@ -216,21 +214,21 @@ export const VBA_PEDAGOGY_COACH = {
     intro: {
       paragraphs: [
         'Au chapitre précédent, nous avons traité UNE seule ligne (la ligne 2). Mais dans la vraie vie, un fichier d\'export contient 300 ou 8 000 lignes pleines de petits défauts : des lignes entièrement vides glissées au milieu, des espaces cachés en fin de texte (« CLI-001  »), ou des sauts à répéter sur chaque commande.',
-        'Évidemment, tu ne vas pas copier-coller ton bloc `If` huit mille fois ! En informatique, on utilise une « boucle » : une instruction qui demande à Excel de répéter automatiquement le même traitement pour la ligne 2, puis la ligne 3, puis la ligne 4... jusqu\'à `lastRow`.',
-        'Mais il y a un piège célèbre que chaque apprenant découvre un jour : si tu supprimes des lignes en avançant de haut en bas (2, 3, 4...), dès que tu supprimes la ligne 3, l\'ancienne ligne 4 remonte en 3 et la boucle la saute ! La solution professionnelle tient en deux mots magiques : `Step -1` (remonter de bas en haut).'
+        'Évidemment, vous n\'allez pas copier-coller votre bloc `If` huit mille fois ! En informatique, on utilise une « boucle » : une instruction qui demande à Excel de répéter automatiquement le même traitement pour la ligne 2, puis la ligne 3, puis la ligne 4... jusqu\'à `lastRow`.',
+        'Mais il y a un piège célèbre que chaque apprenant découvre un jour : si vous supprimez des lignes en avançant de haut en bas (2, 3, 4...), dès que vous supprimez la ligne 3, l\'ancienne ligne 4 remonte en 3 et la boucle la saute ! La solution professionnelle tient en deux mots magiques : `Step -1` (remonter de bas en haut).'
       ],
       whatYouWillLearn: [
         'Écrire une boucle `For r = 2 To lastRow ... Next r` pour parcourir toutes les lignes d\'un tableau.',
         'Supprimer des lignes sans jamais en sauter une seule grâce au sens inversé `For r = lastRow To 2 Step -1`.',
         'Tester si une ligne entière est vide (`WorksheetFunction.CountA(ws.Rows(r)) = 0`) et nettoyer les espaces (`Trim(CStr(...))`).'
       ],
-      concreteOutcome: 'Tu seras capable de nettoyer automatiquement un export ERP sale (lignes blanches + espaces superflus) de milliers de lignes en moins d\'une seconde.'
+      concreteOutcome: 'Vous serez capable de nettoyer automatiquement un export ERP sale (lignes blanches + espaces superflus) de milliers de lignes en moins d\'une seconde.'
     },
     transitions: {
       toTheory: 'Regardons les deux types de boucles les plus utiles (`For` par numéro de ligne et `For Each` par élément) et comprenons visuellement pourquoi la suppression impose de reculer.',
-      toDemo: 'Analysons la macro `NettoyerLignesVidesEtEspaces` : regarde l\'astuce utilisée pour trouver `lastRow` même s\'il y a des trous, puis la boucle inversée `Step -1`.',
-      toExercises: 'Appliquons ces mécanismes : complète d\'abord une boucle de suppression et lecture de TVA, puis écris la boucle nettoyant tous les espaces.',
-      toPractice: 'Nettoie maintenant les données brutes de NovaTech et lance ta macro sur un fichier comportant volontairement des lignes blanches.'
+      toDemo: 'Analysons la macro `NettoyerLignesVidesEtEspaces` : observez l\'astuce utilisée pour trouver `lastRow` même s\'il y a des trous, puis la boucle inversée `Step -1`.',
+      toExercises: 'Appliquons ces mécanismes : complétez d\'abord une boucle de suppression et lecture de TVA, puis écrivez la boucle nettoyant tous les espaces.',
+      toPractice: 'Nettoyez maintenant les données brutes de NovaTech et lancez votre macro sur un fichier comportant volontairement des lignes blanches.'
     },
     demoWalkthrough: {
       goal: 'Éliminer toutes les lignes entièrement vides d\'un onglet puis nettoyer les espaces au début/à la fin des codes restants.',
@@ -268,21 +266,21 @@ export const VBA_PEDAGOGY_COACH = {
     intro: {
       paragraphs: [
         'Une fois les lignes vides et espaces nettoyés, un export professionnel souffre souvent de deux autres problèmes : des commandes importées en double parce que deux extractions se chevauchent, et une présentation brute avec des colonnes trop étroites affichant des `###` illisibles.',
-        'VBA te permet d\'appeler en une seule macro les mêmes commandes natives qu\'Excel utilise quand tu cliques dans le ruban : `RemoveDuplicates` (supprimer les doublons sur une colonne clé), `Sort` (trier chronologiquement ou par montant) et `Columns.AutoFit` (élargir automatiquement chaque colonne au pixel près).',
-        'En définissant proprement la plage exacte `rng` du tableau grâce aux dernières lignes et colonnes détectées, tu assures que le tri emporte TOUTES les colonnes d\'une commande ensemble — fini le cauchemar d\'une colonne triée toute seule qui mélange les noms et les montants !'
+        'VBA vous permet d\'appeler en une seule macro les mêmes commandes natives qu\'Excel utilise quand vous cliquez dans le ruban : `RemoveDuplicates` (supprimer les doublons sur une colonne clé), `Sort` (trier chronologiquement ou par montant) et `Columns.AutoFit` (élargir automatiquement chaque colonne au pixel près).',
+        'En définissant proprement la plage exacte `rng` du tableau grâce aux dernières lignes et colonnes détectées, vous assurez que le tri emporte TOUTES les colonnes d\'une commande ensemble — fini le cauchemar d\'une colonne triée toute seule qui mélange les noms et les montants !'
       ],
       whatYouWillLearn: [
         'Délimiter dynamiquement tout le rectangle de données (`lastRow` et `lastCol`) avec `End(xlUp)` et `End(xlToLeft)`.',
         'Supprimer les doublons sans écraser la ligne de titre (`Header:=xlYes`) grâce à `.RemoveDuplicates`.',
         'Trier tout le tableau ensemble et ajuster automatiquement les largeurs (`.Columns.AutoFit`).'
       ],
-      concreteOutcome: 'Tu obtiendras en 1 clic un tableau dédoublonné, trié dans le bon ordre et parfaitement lisible.'
+      concreteOutcome: 'Vous obtiendrez en 1 clic un tableau dédoublonné, trié dans le bon ordre et parfaitement lisible.'
     },
     transitions: {
       toTheory: 'Voyons comment VBA repère à la fois le bas et le bord droit du tableau, et le rôle des options `Columns:=1` et `Header:=xlYes`.',
       toDemo: 'Regardons la macro `DedupliquerTrierEtFormater` qui réalise ce pipeline complet en seulement 4 actions nettes.',
-      toExercises: 'Mettons d\'abord dans l\'ordre les étapes de ce pipeline de préparation, puis vérifions pourquoi `Header:=xlYes` est si précieux.',
-      toPractice: 'Exécute cette séquence de nettoyage et mise en forme sur les ventes NovaTech.'
+      toExercises: 'Mettez d\'abord dans l\'ordre les étapes de ce pipeline de préparation, puis vérifiez pourquoi `Header:=xlYes` est si précieux.',
+      toPractice: 'Exécutez cette séquence de nettoyage et mise en forme sur les ventes NovaTech.'
     },
     demoWalkthrough: {
       goal: 'Capturer toute la plage de Ventes_Brutes, retirer les doublons de numéro de commande, trier par date croissante et ajuster les largeurs.',
@@ -300,7 +298,7 @@ export const VBA_PEDAGOGY_COACH = {
         { token: '.Columns.AutoFit', meaning: 'Ajuste chaque colonne à la largeur du texte le plus long qu\'elle contient.' }
       ],
       whatHappensAtRuntime: 'Excel dédoublonne instantanément sans perdre le titre en ligne 1, réorganise toutes les colonnes ensemble par date croissante et élargit proprement les colonnes pour faire disparaître tout `###`.',
-      keyTakeaway: 'Toujours construire le rectangle complet `rng` avant de dédoublonner ou trier, et toujours préciser `Header:=xlYes` si la ligne 1 contient tes titres !'
+      keyTakeaway: 'Toujours construire le rectangle complet `rng` avant de dédoublonner ou trier, et toujours préciser `Header:=xlYes` si la ligne 1 contient vos titres !'
     },
     exerciseBrief: {
       guided: {
@@ -310,7 +308,7 @@ export const VBA_PEDAGOGY_COACH = {
       },
       autonomous: {
         mobilize: 'La signification exacte de l\'option `Header:=xlYes` lors d\'un tri ou d\'un dédoublonnage.',
-        observe: 'Ce qu\'il se passe sur la ligne 1 des titres si tu laisses Excel croire qu\'il s\'agit d\'une ligne de commande comme les autres.',
+        observe: 'Ce qu\'il se passe sur la ligne 1 des titres si vous laissez Excel croire qu\'il s\'agit d\'une ligne de commande comme les autres.',
         expected: 'Identifier le rôle exact de `Header:=xlYes` dans `.Sort` et `.RemoveDuplicates`.'
       }
     }
@@ -328,19 +326,19 @@ export const VBA_PEDAGOGY_COACH = {
         'Mesurer précisément l\'écart en jours entre deux dates avec `DateDiff("d", dateDebut, dateFin)`.',
         'Utiliser `Date` (date seule) vs `Now` (date + heure) et `DateAdd` pour calculer des échéances futures.'
       ],
-      concreteOutcome: 'Tu sauras écrire une macro de relance qui détecte automatiquement les factures impayées dont l\'échéance est dépassée et calcule le nombre exact de jours de retard.'
+      concreteOutcome: 'Vous saurez écrire une macro de relance qui détecte automatiquement les factures impayées dont l\'échéance est dépassée et calcule le nombre exact de jours de retard.'
     },
     transitions: {
       toTheory: 'Voyons comment VBA représente les dates en interne et le rôle des 4 fonctions essentielles (`Date`, `IsDate`, `DateDiff`, `DateAdd`).',
       toDemo: 'Regardons la macro `DetecterRetardsFactures` parcourir nos factures et vérifier d\'abord l\'état « Payé » puis la validité de la date.',
-      toExercises: 'Tu as vu l\'ordre de vérification : complète la condition sécurisée avec `IsDate` et `DateDiff`, puis vérifie le comportement des jours ouvrés.',
-      toPractice: 'Implante maintenant le calcul automatique des retards sur les ventes de NovaTech.'
+      toExercises: 'Vous avez vu l\'ordre de vérification : complétez la condition sécurisée avec `IsDate` et `DateDiff`, puis vérifiez le comportement des jours ouvrés.',
+      toPractice: 'Implantez maintenant le calcul automatique des retards sur les ventes de NovaTech.'
     },
     demoWalkthrough: {
       goal: 'Calculer les jours de retard de chaque facture non réglée sans jamais planter si une cellule de date est vide ou invalide.',
       steps: [
         '1. La boucle `For r = 2 To ...End(xlUp).Row` passe en revue toutes les commandes de Ventes_Brutes une par une.',
-        '2. Regarde la condition de sécurité : `If ws.Cells(r, 5).Value <> "Payé" And IsDate(ws.Cells(r, 6).Value) Then`. On vérifie D\'ABORD que la facture n\'est pas déjà payée (`<> "Payé"`) ET que la colonne 6 (F) contient bien une vraie date (`IsDate`).',
+        '2. Regardez la condition de sécurité : `If ws.Cells(r, 5).Value <> "Payé" And IsDate(ws.Cells(r, 6).Value) Then`. On vérifie D\'ABORD que la facture n\'est pas déjà payée (`<> "Payé"`) ET que la colonne 6 (F) contient bien une vraie date (`IsDate`).',
         '3. Si les deux sont vrais, `retard = DateDiff("d", CDate(ws.Cells(r, 6).Value), Date)` compte l\'écart en jours (`"d"` = days) entre l\'échéance passée et aujourd\'hui (`Date`).',
         '4. Si `retard > 0`, l\'échéance est dépassée : VBA écrit le diagnostic lisible (ex. « 12 j de retard ») dans la colonne 9 (I).'
       ],
@@ -370,8 +368,8 @@ export const VBA_PEDAGOGY_COACH = {
   ch08_croiser_rapprocher: {
     intro: {
       paragraphs: [
-        'Croiser deux feuilles est un grand classique : tu as 10 000 commandes dans « Ventes_Brutes » avec juste un `Code_Client`, et tu veux y ramener la Région ou le Commercial depuis la feuille « Clients ». Si tu lances une boucle VBA imbriquée (pour chacune des 10 000 lignes, parcourir les 1 000 clients à la main), Excel doit effectuer 10 MILLIONS de comparaisons... et se fige pendant plusieurs minutes !',
-        'Pour éviter ce blocage, les pros utilisent l\'outil le plus rapide de VBA : le « Dictionnaire » (`Scripting.Dictionary`). Imagine un véritable annuaire instantané rangé en mémoire vive : tu le remplis une seule fois avec tous les clients (`clé = Code_Client → valeur = Région`), puis tu interroges l\'annuaire 10 000 fois en moins d\'une seconde !',
+        'Croiser deux feuilles est un grand classique : vous avez 10 000 commandes dans « Ventes_Brutes » avec juste un `Code_Client`, et vous voulez y ramener la Région ou le Commercial depuis la feuille « Clients ». Si vous lancez une boucle VBA imbriquée (pour chacune des 10 000 lignes, parcourir les 1 000 clients à la main), Excel doit effectuer 10 MILLIONS de comparaisons... et se fige pendant plusieurs minutes !',
+        'Pour éviter ce blocage, les pros utilisent l\'outil le plus rapide de VBA : le « Dictionnaire » (`Scripting.Dictionary`). Imaginez un véritable annuaire instantané rangé en mémoire vive : vous le remplissez une seule fois avec tous les clients (`clé = Code_Client → valeur = Région`), puis vous interrogez l\'annuaire 10 000 fois en moins d\'une seconde !',
         'Cerise sur le gâteau : un Dictionnaire sait immédiatement dire grâce à `.Exists(cle)` si un client manque à l\'appel — parfait pour signaler les « Client inconnu » ou faire des rapprochements bancaires sans jamais produire d\'erreurs #N/A.'
       ],
       whatYouWillLearn: [
@@ -379,13 +377,13 @@ export const VBA_PEDAGOGY_COACH = {
         'Charger une table de référence en un seul passage (étape 1 : `dict(cle) = valeur`).',
         'Interroger instantanément ce dictionnaire sur des milliers de lignes avec `If dict.Exists(cle) Then`.'
       ],
-      concreteOutcome: 'Tu remplaceras des milliers de RECHERCHEV lourdes ou de doubles boucles interminables par des rapprochements multi-feuilles quasi instantanés.'
+      concreteOutcome: 'Vous remplacerez des milliers de RECHERCHEV lourdes ou de doubles boucles interminables par des rapprochements multi-feuilles quasi instantanés.'
     },
     transitions: {
       toTheory: 'Comparons visuellement la double boucle lente avec l\'annuaire Dictionnaire, et notons au passage la petite particularité de Mac si besoin de portabilité.',
       toDemo: 'Regardons les deux boucles successives de `RapatrierRegionsClients` : la 1re construit l\'annuaire depuis Clients, la 2e s\'en sert pour enrichir Ventes_Brutes.',
-      toExercises: 'Vérifions que tu maîtrises les 3 instructions clés du Dictionnaire puis ses bonnes pratiques de nettoyage des clés.',
-      toPractice: 'Exécute ce rapprochement rapide sur les onglets Ventes_Brutes et Clients du projet NovaTech.'
+      toExercises: 'Vérifions que vous maîtrisez les 3 instructions clés du Dictionnaire puis ses bonnes pratiques de nettoyage des clés.',
+      toPractice: 'Exécutez ce rapprochement rapide sur les onglets Ventes_Brutes et Clients du projet NovaTech.'
     },
     demoWalkthrough: {
       goal: 'Associer à chaque commande sa région commerciale en croisant deux onglets sans écrire aucune formule sur la feuille.',
@@ -423,27 +421,27 @@ export const VBA_PEDAGOGY_COACH = {
       paragraphs: [
         'Après avoir nettoyé et croisé les données brutes, l\'étape suivante dans toute entreprise consiste à créer des synthèses visuelles pour la direction : actualiser les Tableaux Croisés Dynamiques (TCD), masquer le quadrillage brut pour donner un aspect épuré, et générer ou actualiser des graphiques de chiffre d\'affaires.',
         'En VBA, la subtilité à connaître pour les graphiques tient à une « poupée russe » toute simple : sur une feuille Excel, il y a d\'abord le **cadre** qui tient la place et la taille sur la feuille (`ChartObject` : gauche, haut, largeur, hauteur), et à l\'intérieur de ce cadre se trouve le **graphique** lui-même (`Chart` : type, données sources, titre).',
-        'En comprenant cette distinction `ChartObject` vs `.Chart`, tu éviteras l\'erreur numéro 1 de tous les tutoriels VBA et tu sauras piloter automatiquement TCD et tableaux de bord.'
+        'En comprenant cette distinction `ChartObject` vs `.Chart`, vous éviterez l\'erreur numéro 1 de tous les tutoriels VBA et vous saurez piloter automatiquement TCD et tableaux de bord.'
       ],
       whatYouWillLearn: [
         'Créer et dimensionner un cadre graphique sur une feuille (`ws.ChartObjects.Add`) puis configurer son contenu via `.Chart`.',
         'Utiliser le raccourci `With ... End With` pour alléger la lecture du code quand on règle plusieurs propriétés sur le même objet.',
         'Actualiser automatiquement un Tableau Croisé Dynamique existant avec `pt.RefreshTable`.'
       ],
-      concreteOutcome: 'Tu sauras automatiser l\'actualisation de tes TCD et la création propre de graphiques dimensionnés au millimètre.'
+      concreteOutcome: 'Vous saurez automatiser l\'actualisation de vos TCD et la création propre de graphiques dimensionnés au millimètre.'
     },
     transitions: {
       toTheory: 'Démystifions la différence entre `ChartObject` (le cadre) et `.Chart` (le graphe dedans), ainsi que la gestion des TCD en VBA.',
       toDemo: 'Regardons les 8 lignes claires de `CreerGraphiqueSynthese` qui placent un histogramme propre sur l\'onglet Tableau_De_Bord.',
-      toExercises: 'Deux exercices « chasse aux bugs » très réalistes t\'attendent : retrouve l\'erreur 438 classique puis corrige un problème d\'objet TCD.',
-      toPractice: 'Génère un graphique récapitulatif et actualise les TCD dans le classeur NovaTech.'
+      toExercises: 'Deux exercices « chasse aux bugs » très réalistes vous attendent : retrouvez l\'erreur 438 classique puis corrigez un problème d\'objet TCD.',
+      toPractice: 'Générez un graphique récapitulatif et actualisez les TCD dans le classeur NovaTech.'
     },
     demoWalkthrough: {
       goal: 'Ajouter un graphique histogramme bien dimensionné sur Tableau_De_Bord et configurer sa source et son titre avec `With`.',
       steps: [
-        '1. `Dim ws As Worksheet, chObj As ChartObject` : remarque que `chObj` est déclaré comme `ChartObject` (le cadre rectangulaire sur la feuille).',
+        '1. `Dim ws As Worksheet, chObj As ChartObject` : remarquez que `chObj` est déclaré comme `ChartObject` (le cadre rectangulaire sur la feuille).',
         '2. `Set chObj = ws.ChartObjects.Add(Left:=20, Top:=110, Width:=460, Height:=260)` dessine le cadre vide à 20 points du bord gauche et 110 points du haut.',
-        '3. Regarde bien l\'ouverture : `With chObj.Chart`. Grâce à `.Chart`, on entre À L\'INTÉRIEUR du cadre ! Ce qui est écrit avec un point devant (`.SetSourceData`, `.ChartType`, `.HasTitle`, `.ChartTitle.Text`) s\'applique donc directement au graphique sans répéter `chObj.Chart` quatre fois.',
+        '3. Regardez bien l\'ouverture : `With chObj.Chart`. Grâce à `.Chart`, on entre À L\'INTÉRIEUR du cadre ! Ce qui est écrit avec un point devant (`.SetSourceData`, `.ChartType`, `.HasTitle`, `.ChartTitle.Text`) s\'applique donc directement au graphique sans répéter `chObj.Chart` quatre fois.',
         '4. `End With` referme ce bloc raccourci proprement.'
       ],
       lineByLineGuide: [
@@ -459,7 +457,7 @@ export const VBA_PEDAGOGY_COACH = {
     exerciseBrief: {
       guided: {
         mobilize: 'La distinction entre le cadre (`ChartObject`) et le graphe interne (`.Chart`), et l\'ordre obligatoire `.HasTitle = True`.',
-        observe: 'Examine chaque ligne du bloc défectueux pour voir quel objet reçoit `.ChartType` ou `.ChartTitle`.',
+        observe: 'Examinez chaque ligne du bloc défectueux pour voir quel objet reçoit `.ChartType` ou `.ChartTitle`.',
         expected: 'Identifier précisément la ligne provoquant l\'erreur 438 « Propriété ou méthode non gérée par cet objet ».'
       },
       autonomous: {
@@ -474,7 +472,7 @@ export const VBA_PEDAGOGY_COACH = {
     intro: {
       paragraphs: [
         'Jusqu\'ici, toutes nos macros travaillaient à l\'intérieur d\'un seul classeur déjà ouvert. Mais dans la majorité des services administratifs, logistiques ou comptables, les données arrivent de l\'extérieur : 12 classeurs d\'agences déposés dans un dossier partagé, ou un fichier CSV à ouvrir chaque semaine.',
-        'Au lieu d\'écrire en dur dans ta macro « C:\\Users\\Paul\\Documents\\... » — ce qui plantera immédiatement sur l\'ordinateur d\'un collègue ou sur Mac — VBA te donne deux outils propres : `Application.FileDialog` qui ouvre la vraie boîte de dialogue Windows/Mac pour que l\'utilisateur choisisse son dossier, et `Dir(...)` qui inspecte chaque fichier du dossier un par un.',
+        'Au lieu d\'écrire en dur dans votre macro « C:\\Users\\Paul\\Documents\\... » — ce qui plantera immédiatement sur l\'ordinateur d\'un collègue ou sur Mac — VBA vous donne deux outils propres : `Application.FileDialog` qui ouvre la vraie boîte de dialogue Windows/Mac pour que l\'utilisateur choisisse son dossier, et `Dir(...)` qui inspecte chaque fichier du dossier un par un.',
         'Nous verrons aussi comment ignorer les petits fichiers fantômes temporaires qui commencent par `~$` quand un classeur est déjà ouvert, et comment sauvegarder une copie d\'archive sans perturber le classeur actif grâce à `SaveCopyAs`.'
       ],
       whatYouWillLearn: [
@@ -482,13 +480,13 @@ export const VBA_PEDAGOGY_COACH = {
         'Respecter automatiquement le séparateur Windows (`\\`) ou Mac (`/`) grâce à `Application.PathSeparator`.',
         'Parcourir les fichiers Excel d\'un dossier avec `Dir()` en boucle `Do While f <> ""`, en filtrant ce classeur et les fichiers temporaires `~$`.'
       ],
-      concreteOutcome: 'Tu sauras bâtir une boucle d\'import multi-fichiers robuste qui fonctionne sur n\'importe quel poste sans chemin codé en dur.'
+      concreteOutcome: 'Vous saurez bâtir une boucle d\'import multi-fichiers robuste qui fonctionne sur n\'importe quel poste sans chemin codé en dur.'
     },
     transitions: {
       toTheory: 'Voyons comment `Dir()` avance de fichier en fichier et quelles précautions protègent contre les boucles infinies ou la corruption de fichiers.',
-      toDemo: 'Analysons la macro `ListerFichiersDossier` : observe la manière propre de demander le dossier puis de parcourir chaque fichier sans toucher aux `~$`.',
+      toDemo: 'Analysons la macro `ListerFichiersDossier` : observez la manière propre de demander le dossier puis de parcourir chaque fichier sans toucher aux `~$`.',
       toExercises: 'Organisons d\'abord la séquence complète d\'une consolidation sûre, puis vérifions la règle des fichiers temporaires `~$`.',
-      toPractice: 'Adapte maintenant cette mécanique sur le classeur NovaTech pour explorer ou sauvegarder une archive horodatée.'
+      toPractice: 'Adaptez maintenant cette mécanique sur le classeur NovaTech pour explorer ou sauvegarder une archive horodatée.'
     },
     demoWalkthrough: {
       goal: 'Demander un dossier à l\'utilisateur puis lister proprement tous ses classeurs Excel valides dans la fenêtre Exécution.',
@@ -505,7 +503,7 @@ export const VBA_PEDAGOGY_COACH = {
         { token: 'Left(f, 2) <> "~$"', meaning: 'Ignore les fichiers temporaires invisibles créés par Excel lorsqu\'un document est ouvert.' },
         { token: 'f = Dir()', meaning: 'Appelé sans argument en bas du `Do While`, `Dir()` passe automatiquement au fichier suivant jusqu\'à renvoyer `""`.' }
       ],
-      whatHappensAtRuntime: 'Une fenêtre « Parcourir » s\'ouvre ; dès que tu choisis un dossier et valides, VBA liste instantanément dans Ctrl+G tous les vrais fichiers Excel trouvés tout en évitant les verrous `~$`.',
+      whatHappensAtRuntime: 'Une fenêtre « Parcourir » s\'ouvre ; dès que vous choisissez un dossier et valides, VBA liste instantanément dans Ctrl+G tous les vrais fichiers Excel trouvés tout en évitant les verrous `~$`.'.replace('valides', 'validez'),
       keyTakeaway: 'Ne jamais oublier `Exit Sub` après Annuler, `Left(f, 2) <> "~$"` pour éviter les verrous, et `f = Dir()` tout en bas du `Do While` pour avancer au fichier suivant (sinon boucle infinie !).'
     },
     exerciseBrief: {
@@ -525,7 +523,7 @@ export const VBA_PEDAGOGY_COACH = {
   ch11_pdf_boutons_evenements: {
     intro: {
       paragraphs: [
-        'Jusqu\'à présent, pour lancer une macro, l\'utilisateur devait ouvrir Alt+F8 ou cliquer sur un bouton. Mais que faire si tu veux qu\'Excel réagisse tout seul dès qu\'un collègue modifie une cellule (par exemple pour horodater automatiquement la date de saisie dans une colonne de suivi) ou dès qu\'il ouvre le fichier le matin ?',
+        'Jusqu\'à présent, pour lancer une macro, l\'utilisateur devait ouvrir Alt+F8 ou cliquer sur un bouton. Mais que faire si vous voulez qu\'Excel réagisse tout seul dès qu\'un collègue modifie une cellule (par exemple pour horodater automatiquement la date de saisie dans une colonne de suivi) ou dès qu\'il ouvre le fichier le matin ?',
         'Excel appelle cela les **macros événementielles** : au lieu d\'être rangées dans un module normal, elles vivent directement derrière la feuille concernée (`Worksheet_Change`) ou derrière `ThisWorkbook` (`Workbook_Open`), et se déclenchent toutes seules quand l\'événement survient.',
         'Attention toutefois à une règle de survie très importante : si `Worksheet_Change` réagit à une modification et écrit elle-même dans la feuille, elle risque de se redéclencher à l\'infini et de figer Excel ! Nous allons donc voir l\'interrupteur obligatoire `Application.EnableEvents = False` et l\'export PDF automatique.'
       ],
@@ -534,20 +532,20 @@ export const VBA_PEDAGOGY_COACH = {
         'Éviter toute boucle infinie grâce au couple protégé `Application.EnableEvents = False` ... `CleanExit: Application.EnableEvents = True`.',
         'Exporter une feuille proprement au format PDF via `.ExportAsFixedFormat` et brancher un bouton sur une macro.'
       ],
-      concreteOutcome: 'Tu sauras créer un horodatage automatique fiable à la saisie sans jamais figer Excel, ainsi qu\'un bouton d\'export PDF en 1 clic.'
+      concreteOutcome: 'Vous saurez créer un horodatage automatique fiable à la saisie sans jamais figer Excel, ainsi qu\'un bouton d\'export PDF en 1 clic.'
     },
     transitions: {
       toTheory: 'Voyons où placer exactement une macro événementielle (Attention : pas dans un Module standard !) et le fonctionnement du garde-fou `EnableEvents`.',
-      toDemo: 'Examinons la macro `Worksheet_Change` pas à pas : regarde comment `Intersect` filtre la colonne A et comment `CleanExit` garantit de rallumer les événements.',
-      toExercises: 'Diagnostique d\'abord le bug célèbre qui fige Excel sur un événement mal protégé, puis conçois une règle propre pour automatiser un bouton PDF.',
-      toPractice: 'Installe l\'export PDF ou l\'horodatage événementiel directement dans le classeur NovaTech.'
+      toDemo: 'Examinons la macro `Worksheet_Change` pas à pas : observez comment `Intersect` filtre la colonne A et comment `CleanExit` garantit de rallumer les événements.',
+      toExercises: 'Diagnostiquez d\'abord le bug célèbre qui fige Excel sur un événement mal protégé, puis concevez une règle propre pour automatiser un bouton PDF.',
+      toPractice: 'Installez l\'export PDF ou l\'horodatage événementiel directement dans le classeur NovaTech.'
     },
     demoWalkthrough: {
       goal: 'Horodater automatiquement la colonne K dès qu\'une nouvelle commande est saisie ou modifiée en colonne A, sans boucle infinie.',
       steps: [
-        '1. Note le commentaire du haut : ce code doit être collé DANS le module de la feuille concernée (clic droit sur l\'onglet > Visualiser le code), jamais dans Module1.',
+        '1. Notez le commentaire du haut : ce code doit être collé DANS le module de la feuille concernée (clic droit sur l\'onglet > Visualiser le code), jamais dans Module1.',
         '2. `On Error GoTo CleanExit` pose tout de suite un filet de sécurité : quoi qu\'il arrive ensuite, VBA passera obligatoirement par `CleanExit:` à la fin.',
-        '3. `If Intersect(Target, Me.Columns(1)) Is Nothing Then Exit Sub` vérifie si la cellule modifiée par l\'utilisateur (`Target`) touche la colonne 1 (A). Si tu modifies la colonne B ou D, la macro s\'arrête aussitôt sans rien faire !',
+        '3. `If Intersect(Target, Me.Columns(1)) Is Nothing Then Exit Sub` vérifie si la cellule modifiée par l\'utilisateur (`Target`) touche la colonne 1 (A). Si vous modifiez la colonne B ou D, la macro s\'arrête aussitôt sans rien faire !',
         '4. `Application.EnableEvents = False` coupe temporairement l\'écoute avant d\'écrire `Now` en colonne 11 (K) ; puis `CleanExit:` exécute `Application.EnableEvents = True` pour réactiver Excel avant de quitter.'
       ],
       lineByLineGuide: [
@@ -556,13 +554,13 @@ export const VBA_PEDAGOGY_COACH = {
         { token: 'Application.EnableEvents = False', meaning: 'Coupe les déclencheurs automatiques avant que VBA n\'écrive à son tour dans la feuille (anti-boucle infinie).' },
         { token: 'CleanExit: Application.EnableEvents = True', meaning: 'Réactive impérativement les événements à la sortie (même si une erreur est survenue entre-temps).' }
       ],
-      whatHappensAtRuntime: 'Dès que tu tapes « CMD-099 » en A15 puis appuies sur Entrée, `Target` vaut A15 (donc dans la colonne 1) : VBA coupe les événements, inscrit instantanément la date et l\'heure du moment en K15, puis rallume `EnableEvents = True`.',
+      whatHappensAtRuntime: 'Dès que vous saisissez « CMD-099 » en A15 puis appuyez sur Entrée, `Target` vaut A15 (donc dans la colonne 1) : VBA coupe les événements, inscrit instantanément la date et l\'heure du moment en K15, puis rallume `EnableEvents = True`.',
       keyTakeaway: '1) Placer dans le module de la feuille (`Me`), 2) Filtrer avec `Intersect`, 3) Toujours couper puis rallumer `Application.EnableEvents` avec `On Error GoTo CleanExit`.'
     },
     exerciseBrief: {
       guided: {
         mobilize: 'La cause exacte d\'une boucle récursive infinie dans `Worksheet_Change`.',
-        observe: 'Compare la macro défectueuse avec le modèle complet : quelle instruction protectrice a été oubliée juste avant l\'écriture dans la feuille ?',
+        observe: 'Comparez la macro défectueuse avec le modèle complet : quelle instruction protectrice a été oubliée juste avant l\'écriture dans la feuille ?',
         expected: 'Expliquer pourquoi Excel se fige et quelle instruction stoppe cette cascade.'
       },
       autonomous: {
@@ -576,22 +574,22 @@ export const VBA_PEDAGOGY_COACH = {
   ch12_projet_final_pro: {
     intro: {
       paragraphs: [
-        'Félicitations d\'être arrivé au dernier chapitre ! Tu sais désormais manipuler les cellules, boucler proprement, dédoublonner, rapprocher avec un dictionnaire et exporter en PDF. Mais une différence majeure sépare un petit script bricolé d\'une vraie macro de production utilisable par toute une équipe :',
+        'Félicitations d\'être arrivé au dernier chapitre ! Vous savez désormais manipuler les cellules, boucler proprement, dédoublonner, rapprocher avec un dictionnaire et exporter en PDF. Mais une différence majeure sépare un petit script bricolé d\'une vraie macro de production utilisable par toute une équipe :',
         'Si un fichier de 25 000 lignes clignote pendant 40 secondes en recalculant toutes les formules à chaque modification de cellule, ou si une erreur imprévue laisse l\'écran d\'Excel complètement figé, l\'utilisateur croira qu\'Excel a planté et forcera la fermeture !',
-        'Dans cette leçon finale, tu vas assembler la « carrosserie professionnelle » de tes macros : sauvegarder l\'état d\'Excel, couper l\'affichage et les calculs pendant le travail pour aller dix fois plus vite, afficher la progression dans la barre d\'état tout en bas, et garantir grâce à `CleanExit` + `ErrHandler` qu\'Excel retrouve toujours un état parfaitement normal même si un imprévu survient.'
+        'Dans cette leçon finale, vous allez assembler la « carrosserie professionnelle » de vos macros : sauvegarder l\'état d\'Excel, couper l\'affichage et les calculs pendant le travail pour aller dix fois plus vite, afficher la progression dans la barre d\'état tout en bas, et garantir grâce à `CleanExit` + `ErrHandler` qu\'Excel retrouve toujours un état parfaitement normal même si un imprévu survient.'
       ],
       whatYouWillLearn: [
         'Accélérer drastiquement toute macro sur gros volumes avec `Application.ScreenUpdating = False` et `Application.Calculation = xlCalculationManual`.',
         'Construire l\'architecture robuste à deux étiquettes `On Error GoTo ErrHandler` → `CleanExit:` → `Exit Sub` → `ErrHandler:` → `Resume CleanExit`.',
         'Découper un long workflow en petites sous-procédures lisibles appelées depuis un chef d\'orchestre (`Call Etape01_Nettoyer`).'
       ],
-      concreteOutcome: 'Tu repartiras avec un modèle d\'architecture complet prêt à réutiliser dans tous tes projets VBA en entreprise, digne d\'un développeur confirmé.'
+      concreteOutcome: 'Vous repartirez avec un modèle d\'architecture complet prêt à réutiliser dans tous vos projets VBA en entreprise, digne d\'un développeur confirmé.'
     },
     transitions: {
       toTheory: 'Voyons la structure exacte de ce squelette de production et pourquoi chaque ligne du bloc `CleanExit` compte autant que le reste du code.',
-      toDemo: 'Analysons la macro `ExecuterPipelinePro` ligne par ligne : c\'est ce même squelette professionnel qu\'Excel Macro Studio génère dans tes macros !',
-      toExercises: 'Vérifions ta maîtrise en complétant les 3 piliers clés de ce squelette de sécurité puis en détaillant la stratégie pour livrer ce projet NovaTech.',
-      toPractice: 'Assemble et exécute le pipeline complet NovaTech de bout en bout (nettoyage, rapprochement, KPI, export PDF) avec suivi dans la barre d\'état.'
+      toDemo: 'Analysons la macro `ExecuterPipelinePro` ligne par ligne : c\'est ce même squelette professionnel qu\'Excel Macro Studio génère dans vos macros !',
+      toExercises: 'Vérifions votre maîtrise en complétant les 3 piliers clés de ce squelette de sécurité puis en détaillant la stratégie pour livrer ce projet NovaTech.',
+      toPractice: 'Assemblez et exécutez le pipeline complet NovaTech de bout en bout (nettoyage, rapprochement, KPI, export PDF) avec suivi dans la barre d\'état.'
     },
     demoWalkthrough: {
       goal: 'Protéger un workflow complet multi-étapes contre les plantages, accélérer son exécution x10 et restaurer systématiquement Excel à la sortie.',

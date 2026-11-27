@@ -207,7 +207,7 @@ export function renderTutorialView(container, { navigate, onNotify }) {
            ${coach.intro.paragraphs.map((p) => `<p style="margin:0;line-height:1.6">${escapeHtml(p)}</p>`).join('')}
            <div class="before-after-grid" style="margin-top:0.25rem">
              <div class="panel" style="padding:0.75rem 1rem;background:var(--surface)">
-               <strong>Ce que tu vas apprendre ici :</strong>
+               <strong>Ce que vous allez apprendre ici :</strong>
                <ul style="margin:0.35rem 0 0;padding-left:1.15rem">
                  ${coach.intro.whatYouWillLearn.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}
                </ul>
@@ -225,7 +225,7 @@ export function renderTutorialView(container, { navigate, onNotify }) {
 
     const demoExtrasHtml = coach?.demoWalkthrough
       ? `<div class="stack-sm">
-           ${coach.demoWalkthrough.whatToObserve ? `<div class="alert-banner alert-info"><strong>Ce que tu dois observer :</strong> <span>${escapeHtml(coach.demoWalkthrough.whatToObserve)}</span></div>` : ''}
+           ${coach.demoWalkthrough.whatToObserve ? `<div class="alert-banner alert-info"><strong>Ce que vous devez observer :</strong> <span>${escapeHtml(coach.demoWalkthrough.whatToObserve)}</span></div>` : ''}
            ${
              coach.demoWalkthrough.lineByLineGuide?.length
                ? `<div class="data-table-wrap">
