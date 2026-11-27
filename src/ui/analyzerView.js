@@ -199,8 +199,8 @@ export function renderAnalyzerView(container, { onNotify, navigate }) {
           <p><strong>Glissez-déposez un fichier Excel ici</strong> (.xlsx, .xlsm, .xls, .csv)</p>
           <p class="field-hint">Analyse 100 % locale dans votre navigateur. Aucune macro contenue dans les fichiers .xlsm n'est exécutée.</p>
           <div style="margin-top:0.8rem">
-            <label class="btn-primary btn-sm" for="an-file-input" style="cursor:pointer">Choisir un fichier sur votre ordinateur</label>
-            <input type="file" id="an-file-input" accept=".xlsx,.xlsm,.xls,.csv" class="visually-hidden">
+            <button type="button" class="btn-primary btn-sm" id="an-pick-file-btn">Choisir un fichier sur votre ordinateur</button>
+            <input type="file" id="an-file-input" accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden>
           </div>
         </div>
 
@@ -209,6 +209,23 @@ export function renderAnalyzerView(container, { onNotify, navigate }) {
     `;
 
     const dz = container.querySelector('#an-dropzone');
+    const fileInput = container.querySelector('#an-file-input');
+    const pickBtn = container.querySelector('#an-pick-file-btn');
+
+    pickBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!fileInput) return;
+      fileInput.value = '';
+      fileInput.click();
+    });
+
+    dz?.addEventListener('click', (e) => {
+      if (e.target.closest('button, input')) return;
+      if (!fileInput) return;
+      fileInput.value = '';
+      fileInput.click();
+    });
+
     dz?.addEventListener('dragover', (e) => {
       e.preventDefault();
       dz.classList.add('dragover');
@@ -220,8 +237,10 @@ export function renderAnalyzerView(container, { onNotify, navigate }) {
       handleFile(e.dataTransfer?.files?.[0]);
     });
 
-    container.querySelector('#an-file-input')?.addEventListener('change', (e) => {
-      handleFile(e.target.files?.[0]);
+    fileInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      handleFile(file);
     });
 
     container.querySelector('#an-demo-btn')?.addEventListener('click', () => {
