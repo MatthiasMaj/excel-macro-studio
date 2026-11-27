@@ -630,6 +630,18 @@ details.advanced-panel[open] summary {
   align-items: start;
 }
 
+@media (min-width: 901px) {
+  .tutorial-layout > * {
+    position: sticky;
+    top: calc(var(--topbar-height) + 1rem);
+    max-height: calc(100vh - var(--topbar-height) - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+}
+
 .tutorial-toc-panel {
   position: sticky;
   top: calc(var(--topbar-height) + 1rem);

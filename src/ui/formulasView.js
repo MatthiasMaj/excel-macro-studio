@@ -148,7 +148,7 @@ export function renderFormulasView(container, { navigate, onNotify }) {
               <label for="fm-search-input">Rechercher une fonction</label>
               <input type="search" id="fm-search-input" value="${escapeHtml(searchQuery)}" placeholder="Ex : SI, RECHERCHEX, stock...">
             </div>
-            <div style="max-height:520px;overflow:auto">${tocHtml}</div>
+            <div>${tocHtml}</div>
           </aside>
 
           <article class="panel stack-md" aria-labelledby="fm-title">
@@ -1141,3 +1141,4 @@ export function renderFormulasView(container, { navigate, onNotify }) {
 
   paintShell();
 }
+
