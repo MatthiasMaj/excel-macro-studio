@@ -1,5 +1,6 @@
 import { analyzeMacroSecurity } from '../core/security.js';
 import { applyCommentLevel } from './vbaBeginnerAnnotator.js';
+import { normalizeCommentLevel } from '../core/executionContext.js';
 import { generateOfficeScriptWorkflow } from './officeScriptsGenerator.js';
 import { getOperationById } from '../catalog/index.js';
 import { buildOperationParams, createGenerationContext } from './vbaGenerator.js';
@@ -170,11 +171,12 @@ export function generateWorkflowMacro(steps = [], workflowMeta = {}, options = {
   }
 
   const rawCode = lines.join('\n');
-  const commentLevel =
-    options.commentLevel ||
-    execCtx.commentLevel ||
-    (options.beginnerComments === false ? 'intermediate' : 'beginner');
-  const beginnerMode = commentLevel === 'beginner';
+  const requestedComment =
+    options.beginnerComments === false
+      ? 'none'
+      : options.commentLevel ?? execCtx.commentLevel ?? 'with';
+  const commentLevel = normalizeCommentLevel(requestedComment);
+  const beginnerMode = commentLevel === 'with';
   const code = applyCommentLevel(rawCode, commentLevel);
   const security = analyzeMacroSecurity(
     {
@@ -203,6 +205,7 @@ export function generateWorkflowMacro(steps = [], workflowMeta = {}, options = {
     commentLevel,
     beginnerComments: beginnerMode,
     executionContext: execCtx,
+    rawCode,
     code,
     summary: `Macro composite enchaînant ${activeSteps.length} opérations dans un module unifié avec gestion d'erreurs par étape.`,
     stepsExplanation,

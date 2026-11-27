@@ -98,8 +98,8 @@ export function renderGuidedView(container, { onNotify, navigate }) {
           macroName: mergedAdv.macroName,
           confirmDestructive: mergedAdv.confirmDestructive,
           includeTiming: mergedAdv.includeTiming,
-          commentLevel: mergedAdv.beginnerComments ? 'beginner' : (state.executionContext?.commentLevel || 'intermediate'),
-          beginnerComments: mergedAdv.beginnerComments,
+          commentLevel: mergedAdv.beginnerComments !== false ? 'with' : 'none',
+          beginnerComments: mergedAdv.beginnerComments !== false,
           sourceMode: 'guided'
         });
         addHistoryEntry(result);

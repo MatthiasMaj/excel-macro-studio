@@ -12,14 +12,26 @@ export const DEFAULT_EXECUTION_CONTEXT = {
   hasExistingMacros: false,
   dataVolume: 'medium',        // 'small' (< 1 000) | 'medium' (1 000 - 20 000) | 'large' (> 20 000)
   frequency: 'recurring',      // 'once' | 'recurring'
-  commentLevel: 'beginner'     // 'beginner' | 'intermediate' | 'advanced'
+  commentLevel: 'with'         // 'with' | 'none'
 };
+
+export function normalizeCommentLevel(value) {
+  if (value === false || value === 'none' || value === 'advanced') {
+    return 'none';
+  }
+  return 'with';
+}
 
 export function loadExecutionContext() {
   try {
     if (typeof localStorage === 'undefined') return { ...DEFAULT_EXECUTION_CONTEXT };
     const raw = localStorage.getItem(EXEC_CONTEXT_KEY);
-    return raw ? { ...DEFAULT_EXECUTION_CONTEXT, ...JSON.parse(raw) } : { ...DEFAULT_EXECUTION_CONTEXT };
+    if (!raw) return { ...DEFAULT_EXECUTION_CONTEXT };
+    const merged = { ...DEFAULT_EXECUTION_CONTEXT, ...JSON.parse(raw) };
+    return {
+      ...merged,
+      commentLevel: normalizeCommentLevel(merged.commentLevel)
+    };
   } catch {
     return { ...DEFAULT_EXECUTION_CONTEXT };
   }
@@ -27,14 +39,18 @@ export function loadExecutionContext() {
 
 export function saveExecutionContext(ctx) {
   const merged = { ...DEFAULT_EXECUTION_CONTEXT, ...(ctx || {}) };
+  const normalized = {
+    ...merged,
+    commentLevel: normalizeCommentLevel(merged.commentLevel)
+  };
   try {
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(EXEC_CONTEXT_KEY, JSON.stringify(merged));
+      localStorage.setItem(EXEC_CONTEXT_KEY, JSON.stringify(normalized));
     }
   } catch {
     // Stockage bloqué
   }
-  return merged;
+  return normalized;
 }
 
 export function excelVersionToPlatformPatch(excelVersion) {

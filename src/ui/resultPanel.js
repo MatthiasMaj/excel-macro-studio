@@ -1,6 +1,6 @@
 import { escapeHtml } from '../core/security.js';
 import { highlightVbaToHtml } from '../engine/vbaHighlighter.js';
-import { applyCommentLevel } from '../engine/vbaBeginnerAnnotator.js';
+import { applyCommentLevel, applyOfficeScriptCommentLevel } from '../engine/vbaBeginnerAnnotator.js';
 import { refineMacroResult } from '../engine/vbaRefiner.js';
 import {
   copyToClipboard,
@@ -11,6 +11,7 @@ import {
   openPrintableDocumentation
 } from '../services/exportService.js';
 import {
+  getState,
   saveToLibrary,
   setState,
   addHistoryEntry,
@@ -55,7 +56,10 @@ export function renderResultPanel(container, result, { onNotify, onResultUpdated
       .map((b) => `<span class="badge badge-${escapeHtml(b.tone)}">${escapeHtml(b.label)}</span>`)
       .join('');
 
-    const curCommentLevel = result.commentLevel || (result.beginnerComments === false ? 'intermediate' : 'beginner');
+    const curCommentLevel =
+      result.commentLevel === 'none' || result.beginnerComments === false || result.commentLevel === 'advanced'
+        ? 'none'
+        : 'with';
     const lifecycle = result.lifecycleStatus || 'analyzed';
     const lifecycleSteps = [
       { key: 'generated', label: '1. Code généré', done: true },
@@ -110,18 +114,13 @@ export function renderResultPanel(container, result, { onNotify, onResultUpdated
           }
           <button type="button" class="btn-secondary btn-sm" id="res-txt-btn" ${!destructiveConfirmed ? 'disabled' : ''}>Télécharger .txt</button>
           <button type="button" class="btn-secondary btn-sm" id="res-doc-pdf-btn">Documentation PDF / Imprimer</button>
-          ${
-            !isOfficeScript
-              ? `<label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.82rem">
-                   <span>Commentaires :</span>
-                   <select id="res-comment-level-sel" class="select-compact" aria-label="Niveau de commentaires VBA">
-                     <option value="beginner" ${curCommentLevel === 'beginner' ? 'selected' : ''}>Débutant</option>
-                     <option value="intermediate" ${curCommentLevel === 'intermediate' ? 'selected' : ''}>Intermédiaire</option>
-                     <option value="advanced" ${curCommentLevel === 'advanced' ? 'selected' : ''}>Avancé</option>
-                   </select>
-                 </label>`
-              : ''
-          }
+          <label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.82rem">
+            <span>Commentaires :</span>
+            <select id="res-comment-level-sel" class="select-compact" aria-label="Afficher ou masquer les commentaires du code">
+              <option value="with" ${curCommentLevel !== 'none' ? 'selected' : ''}>Avec commentaires</option>
+              <option value="none" ${curCommentLevel === 'none' ? 'selected' : ''}>Sans commentaires</option>
+            </select>
+          </label>
           <button type="button" class="btn-secondary btn-sm" id="res-edit-toggle-btn">${editMode ? 'Mode coloration' : 'Modifier le code'}</button>
           <button type="button" class="btn-ghost btn-sm" id="res-save-lib-btn">Sauvegarder en bibliothèque</button>
         </div>
@@ -314,17 +313,35 @@ export function renderResultPanel(container, result, { onNotify, onResultUpdated
     });
 
     container.querySelector('#res-comment-level-sel')?.addEventListener('change', (e) => {
-      const lvl = e.target.value;
-      const nextCode = applyCommentLevel(result.code, lvl);
+      const lvl = e.target.value === 'none' ? 'none' : 'with';
+      const sourceCode = result.rawCode || result.code;
+      const nextCode = isOfficeScript
+        ? applyOfficeScriptCommentLevel(sourceCode, lvl)
+        : applyCommentLevel(sourceCode, lvl);
+      const withComments = lvl === 'with';
       result = {
         ...result,
+        rawCode: sourceCode,
         code: nextCode,
         commentLevel: lvl,
-        beginnerComments: lvl === 'beginner'
+        beginnerComments: withComments
       };
-      setState({ currentResult: result, beginnerComments: lvl === 'beginner' }, 'beginnerComments');
+      const curExecCtx = getState().executionContext || {};
+      setState(
+        {
+          currentResult: result,
+          beginnerComments: withComments,
+          executionContext: { ...curExecCtx, commentLevel: lvl }
+        },
+        'beginnerComments'
+      );
       onResultUpdated?.(result);
-      onNotify?.(`Niveau de commentaires appliqué : ${lvl}.`, 'info');
+      onNotify?.(
+        withComments
+          ? 'Commentaires détaillés affichés dans le code.'
+          : 'Code affiché sans commentaires.',
+        'info'
+      );
       paint();
     });
 

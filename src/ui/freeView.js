@@ -48,11 +48,10 @@ export function renderFreeView(container, { onNotify, navigate }) {
             </select>
           </div>
           <div class="field">
-            <label for="ctx-comments">Niveau de commentaires</label>
+            <label for="ctx-comments">Commentaires dans le code généré</label>
             <select id="ctx-comments">
-              <option value="beginner" ${execCtx.commentLevel === 'beginner' ? 'selected' : ''}>Débutant (explications détaillées)</option>
-              <option value="intermediate" ${execCtx.commentLevel === 'intermediate' ? 'selected' : ''}>Intermédiaire (commentaires utiles)</option>
-              <option value="advanced" ${execCtx.commentLevel === 'advanced' ? 'selected' : ''}>Avancé (code concis)</option>
+              <option value="with" ${execCtx.commentLevel !== 'none' ? 'selected' : ''}>Avec commentaires (explications détaillées)</option>
+              <option value="none" ${execCtx.commentLevel === 'none' ? 'selected' : ''}>Sans commentaires (code pur)</option>
             </select>
           </div>
         </div>
@@ -201,7 +200,8 @@ export function renderFreeView(container, { onNotify, navigate }) {
     // Bind contexte d'exécution
     const updateCtx = (patch) => {
       const next = { ...getState().executionContext, ...patch };
-      setState({ executionContext: next, beginnerComments: next.commentLevel === 'beginner' }, 'executionContext');
+      const withComments = next.commentLevel !== 'none';
+      setState({ executionContext: next, beginnerComments: withComments }, 'executionContext');
       const verSel = document.getElementById('global-excel-version');
       if (verSel) verSel.value = getState().excelVersion;
       paint();
@@ -282,8 +282,8 @@ export function renderFreeView(container, { onNotify, navigate }) {
         const result = buildFromNaturalLanguage(st.freeMode.analysis, userAnswers, {
           excelVersion: st.excelVersion,
           executionContext: st.executionContext,
-          commentLevel: st.executionContext?.commentLevel || 'beginner',
-          beginnerComments: st.executionContext?.commentLevel === 'beginner'
+          commentLevel: st.executionContext?.commentLevel === 'none' ? 'none' : 'with',
+          beginnerComments: st.executionContext?.commentLevel !== 'none'
         });
         addHistoryEntry(result);
         renderResultPanel(container.querySelector('#free-result-mount'), result, { onNotify });

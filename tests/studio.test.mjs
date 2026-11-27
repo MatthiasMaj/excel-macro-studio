@@ -30,7 +30,15 @@ import {
   buildExtendedNovaTechWorkbookBuffer,
   createTrainingWorkbookContext
 } from '../src/services/trainingWorkbook.js';
-import { annotateVbaForBeginners, stripBeginnerAnnotations, applyCommentLevel } from '../src/engine/vbaBeginnerAnnotator.js';
+import {
+  annotateVbaForBeginners,
+  stripBeginnerAnnotations,
+  stripAllVbaComments,
+  stripAllOfficeScriptComments,
+  applyCommentLevel,
+  applyOfficeScriptCommentLevel
+} from '../src/engine/vbaBeginnerAnnotator.js';
+import { normalizeCommentLevel } from '../src/core/executionContext.js';
 import { auditVbaCode } from '../src/engine/vbaAuditor.js';
 import { generateOfficeScript, generateOfficeScriptWorkflow } from '../src/engine/officeScriptsGenerator.js';
 import {
@@ -470,5 +478,55 @@ test('Constructeur visuel de formules & Mode Défi adaptatif', () => {
   const prog = recordChallengeOutcome(FORMULA_CHALLENGES[0].id, true, 10);
   assert.equal(prog.challengeStats.score, 10);
   assert.equal(loadFormulaProgress().challengeStats.streak, 1);
+});
+
+test('Mode commentaires binaire (Avec / Sans commentaires) : VBA, Workflows et Office Scripts', () => {
+  assert.equal(normalizeCommentLevel('with'), 'with');
+  assert.equal(normalizeCommentLevel('beginner'), 'with');
+  assert.equal(normalizeCommentLevel('none'), 'none');
+  assert.equal(normalizeCommentLevel(false), 'none');
+
+  const op = getOperationById('cells_trim_spaces');
+  const vbaWith = generateSingleMacro(op, { sheetName: 'Clients' }, { commentLevel: 'with' });
+  assert.equal(vbaWith.commentLevel, 'with');
+  assert.equal(vbaWith.beginnerComments, true);
+  assert.ok(vbaWith.code.includes("' [Explication]"));
+  assert.ok(typeof vbaWith.rawCode === 'string' && vbaWith.rawCode.length > 0);
+
+  const vbaNone = generateSingleMacro(op, { sheetName: 'Clients' }, { commentLevel: 'none' });
+  assert.equal(vbaNone.commentLevel, 'none');
+  assert.equal(vbaNone.beginnerComments, false);
+  const vbaCommentLines = vbaNone.code.split(/\r?\n/).filter((l) => l.trimStart().startsWith("'"));
+  assert.equal(vbaCommentLines.length, 0);
+
+  // Bascule réversible Sans -> Avec depuis rawCode
+  const restoredVba = applyCommentLevel(vbaWith.rawCode, 'with');
+  assert.ok(restoredVba.includes("' [Explication]"));
+  assert.equal(stripAllVbaComments(restoredVba), vbaNone.code);
+
+  // Workflow multi-étapes
+  const wfSteps = [
+    { uid: 'w1', opId: 'cells_trim_spaces', enabled: true, params: { sheetName: 'Feuil1' } },
+    { uid: 'w2', opId: 'fmt_table_auto', enabled: true, params: { sheetName: 'Feuil1' } }
+  ];
+  const wfWith = generateWorkflowMacro(wfSteps, { name: 'Nettoyage' }, { commentLevel: 'with' });
+  const wfNone = generateWorkflowMacro(wfSteps, { name: 'Nettoyage' }, { commentLevel: 'none' });
+  assert.ok(wfWith.code.includes("' [Explication]"));
+  assert.equal(
+    wfNone.code.split(/\r?\n/).filter((l) => l.trimStart().startsWith("'")).length,
+    0
+  );
+
+  // Office Scripts (Excel Web)
+  const osWith = generateOfficeScript(op, { sheetName: 'Clients' }, { commentLevel: 'with' });
+  const osNone = generateOfficeScript(op, { sheetName: 'Clients' }, { commentLevel: 'none' });
+  assert.equal(osWith.commentLevel, 'with');
+  assert.ok(osWith.code.includes('// [Explication]'));
+  assert.equal(
+    osNone.code.split(/\r?\n/).filter((l) => l.trimStart().startsWith('//')).length,
+    0
+  );
+  assert.equal(stripAllOfficeScriptComments(osWith.rawCode), osNone.code);
+  assert.equal(applyOfficeScriptCommentLevel(osWith.rawCode, 'with'), osWith.code);
 });
 

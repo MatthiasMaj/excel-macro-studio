@@ -1,6 +1,8 @@
 import { analyzeMacroSecurity } from '../core/security.js';
 import { getOperationById } from '../catalog/index.js';
 import { buildOperationParams } from './vbaGenerator.js';
+import { applyOfficeScriptCommentLevel } from './vbaBeginnerAnnotator.js';
+import { normalizeCommentLevel } from '../core/executionContext.js';
 
 export const VBA_VS_OFFICE_SCRIPTS_COMPARISON = [
   { criterion: 'Environnement d\'exécution', vba: 'Excel Desktop (Windows / Mac)', officeScripts: 'Excel Web et Excel Desktop M365 (onglet Automatisation)' },
@@ -52,12 +54,16 @@ function buildOfficeScriptBodyForOp(opId, params) {
       return {
         supported: true,
         body: [
+          `  // [Explication] Ouvre la feuille cible (ou la feuille active si le nom n'existe pas).`,
           `  const ws = workbook.getWorksheet(${sSheet}) || workbook.getActiveWorksheet();`,
+          `  // [Explication] Récupère automatiquement toute la zone contenant des données.`,
           `  const used = ws.getUsedRange();`,
           `  if (!used) return;`,
+          `  // [Explication] Parcourt chaque ligne et cellule : supprime les espaces superflus au début, à la fin et entre les mots.`,
           `  const cleaned = used.getValues().map((row) =>`,
           `    row.map((cell) => (typeof cell === "string" ? cell.replace(/\\u00A0/g, " ").trim().replace(/\\s+/g, " ") : cell))`,
           `  );`,
+          `  // [Explication] Réécrit le tableau nettoyé d'un seul bloc dans Excel.`,
           `  used.setValues(cleaned);`
         ]
       };
@@ -66,9 +72,11 @@ function buildOfficeScriptBodyForOp(opId, params) {
       return {
         supported: true,
         body: [
+          `  // [Explication] Sélectionne la feuille cible puis la zone utilisée.`,
           `  const ws = workbook.getWorksheet(${sSheet}) || workbook.getActiveWorksheet();`,
           `  const used = ws.getUsedRange();`,
           `  if (!used) return;`,
+          `  // [Explication] Trie le tableau sur la colonne ${keyCol} (${params.order !== 'desc' ? 'ordre croissant' : 'ordre décroissant'}) en conservant la ligne d'en-tête.`,
           `  used.getSort().apply([{ key: ${Math.max(0, keyCol.charCodeAt(0) - 65)}, ascending: ${params.order !== 'desc'} }], false, true);`
         ]
       };
@@ -77,13 +85,16 @@ function buildOfficeScriptBodyForOp(opId, params) {
       return {
         supported: true,
         body: [
+          `  // [Explication] Cible la feuille puis récupère toute la plage de données.`,
           `  const ws = workbook.getWorksheet(${sSheet}) || workbook.getActiveWorksheet();`,
           `  const used = ws.getUsedRange();`,
           `  if (!used) return;`,
+          `  // [Explication] Sélectionne la 1re ligne (en-tête) et applique fond vert Excel, texte blanc et gras.`,
           `  const header = used.getRow(0);`,
           `  header.getFormat().getFill().setColor("#107C41");`,
           `  header.getFormat().getFont().setColor("#FFFFFF");`,
           `  header.getFormat().getFont().setBold(true);`,
+          `  // [Explication] Ajuste automatiquement la largeur de toutes les colonnes.`,
           `  used.getFormat().autofitColumns();`
         ]
       };
@@ -92,10 +103,13 @@ function buildOfficeScriptBodyForOp(opId, params) {
       return {
         supported: true,
         body: [
+          `  // [Explication] Cible la feuille et récupère la plage de données source.`,
           `  const ws = workbook.getWorksheet(${sSheet}) || workbook.getActiveWorksheet();`,
           `  const used = ws.getUsedRange();`,
           `  if (!used) return;`,
+          `  // [Explication] Insère un graphique en histogramme groupé à partir des données détectées.`,
           `  const chart = ws.addChart(ExcelScript.ChartType.columnClustered, used);`,
+          `  // [Explication] Définit le titre affiché en haut du graphique.`,
           `  chart.getTitle().setText(${tsStr(params.chartTitle || 'Synthèse')});`
         ]
       };
@@ -108,15 +122,19 @@ function buildOfficeScriptBodyForOp(opId, params) {
           ? ['Dans Excel Web, un Office Script ne peut pas lire un dossier local sur votre ordinateur : la consolidation multi-fichiers nécessite Power Automate + OneDrive/SharePoint. Le script ci-dessous consolide les onglets présents dans le classeur.']
           : [],
         body: [
+          `  // [Explication] Prépare (ou crée si absente) la feuille de consolidation finale.`,
           `  const targetName = ${tsStr(params.targetSheetName || 'Consolidation')};`,
           `  let target = workbook.getWorksheet(targetName);`,
           `  if (!target) target = workbook.addWorksheet(targetName);`,
+          `  // [Explication] Indique à quelle ligne écrire dans la feuille cible (0 = tout en haut).`,
           `  let nextRow = 0;`,
+          `  // [Explication] Passe en revue chaque onglet du classeur, sauf la feuille de destination.`,
           `  for (const ws of workbook.getWorksheets()) {`,
           `    if (ws.getName() === targetName) continue;`,
           `    const used = ws.getUsedRange();`,
           `    if (!used) continue;`,
           `    const vals = used.getValues();`,
+          `    // [Explication] Conserve l'en-tête uniquement pour le premier onglet, puis saute la ligne 0 ensuite.`,
           `    const slice = nextRow === 0 ? vals : vals.slice(1);`,
           `    if (slice.length > 0) {`,
           `      target.getRangeByIndexes(nextRow, 0, slice.length, slice[0].length).setValues(slice);`,
@@ -180,7 +198,14 @@ export function generateOfficeScript(operation, rawParams = {}, options = {}) {
     `}`
   ];
 
-  const code = codeLines.join('\n');
+  const rawCode = codeLines.join('\n');
+  const requestedComment =
+    options.beginnerComments === false
+      ? 'none'
+      : options.commentLevel ?? options.executionContext?.commentLevel ?? 'with';
+  const commentLevel = normalizeCommentLevel(requestedComment);
+  const beginnerMode = commentLevel === 'with';
+  const code = applyOfficeScriptCommentLevel(rawCode, commentLevel);
   const limitations = [
     ...(built.limitations || []),
     'Technologie Office Scripts (.osts TypeScript) : uniquement exécutable avec Microsoft 365 (Excel Web et onglet Automatisation).'
@@ -201,8 +226,10 @@ export function generateOfficeScript(operation, rawParams = {}, options = {}) {
     placement: 'Excel Web > Onglet Automatisation',
     excelVersion: 'excelWeb',
     excelVersionLabel: 'Excel Web (Office Scripts TypeScript)',
-    beginnerComments: true,
+    commentLevel,
+    beginnerComments: beginnerMode,
     lifecycleStatus: 'analyzed',
+    rawCode,
     code,
     summary: `Script TypeScript compatible Excel Web généré pour « ${operation.name} » (sans aucun code VBA).`,
     stepsExplanation: [operation.shortDesc],
@@ -245,18 +272,26 @@ export function generateOfficeScriptWorkflow(steps = [], workflowMeta = {}, opti
     );
   });
 
-  const code = [
+  const rawCode = [
     `// ============================================================================`,
     `// Workflow Office Scripts (TypeScript) — Excel Web`,
     `// Workflow : ${workflowMeta.name || 'Automatisation_Web'} (${activeSteps.length} étapes)`,
     `// ============================================================================`,
     ``,
+    `// [Explication] Point d'entrée principal exécuté lorsque vous cliquez sur Exécuter.`,
     `function main(workbook: ExcelScript.Workbook) {`,
     ...activeSteps.map((_, idx) => `  etape${idx + 1}(workbook);`),
     `}`,
     ``,
     ...blocks
   ].join('\n');
+  const requestedComment =
+    options.beginnerComments === false
+      ? 'none'
+      : options.commentLevel ?? options.executionContext?.commentLevel ?? 'with';
+  const commentLevel = normalizeCommentLevel(requestedComment);
+  const beginnerMode = commentLevel === 'with';
+  const code = applyOfficeScriptCommentLevel(rawCode, commentLevel);
 
   return {
     id: `os_wf_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -271,8 +306,10 @@ export function generateOfficeScriptWorkflow(steps = [], workflowMeta = {}, opti
     placement: 'Excel Web > Onglet Automatisation',
     excelVersion: 'excelWeb',
     excelVersionLabel: 'Excel Web (Office Scripts TypeScript)',
-    beginnerComments: true,
+    commentLevel,
+    beginnerComments: beginnerMode,
     lifecycleStatus: 'analyzed',
+    rawCode,
     code,
     summary: `Script TypeScript multi-étapes pour Excel Web enchaînant ${activeSteps.length} opérations sans VBA.`,
     stepsExplanation: explanation,

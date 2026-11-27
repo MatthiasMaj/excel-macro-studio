@@ -1,5 +1,6 @@
 import { analyzeMacroSecurity } from '../core/security.js';
 import { applyCommentLevel } from './vbaBeginnerAnnotator.js';
+import { normalizeCommentLevel } from '../core/executionContext.js';
 import { generateOfficeScript } from './officeScriptsGenerator.js';
 import {
   vbaStr,
@@ -221,11 +222,12 @@ export function generateSingleMacro(operation, rawParams = {}, options = {}) {
   }
 
   const rawCode = lines.join('\n');
-  const commentLevel =
-    options.commentLevel ||
-    execCtx.commentLevel ||
-    (options.beginnerComments === false ? 'intermediate' : 'beginner');
-  const beginnerMode = commentLevel === 'beginner';
+  const requestedComment =
+    options.beginnerComments === false
+      ? 'none'
+      : options.commentLevel ?? execCtx.commentLevel ?? 'with';
+  const commentLevel = normalizeCommentLevel(requestedComment);
+  const beginnerMode = commentLevel === 'with';
   const code = applyCommentLevel(rawCode, commentLevel);
   const security = analyzeMacroSecurity(operation, code);
 
@@ -260,6 +262,7 @@ export function generateSingleMacro(operation, rawParams = {}, options = {}) {
     commentLevel,
     beginnerComments: beginnerMode,
     executionContext: execCtx,
+    rawCode,
     code,
     summary: generated.explanation || operation.description,
     stepsExplanation: [generated.explanation || operation.description],

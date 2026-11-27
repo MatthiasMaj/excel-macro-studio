@@ -266,8 +266,8 @@ export function renderWorkflowView(container, { onNotify }) {
         const result = generateWorkflowMacro(st.workflowSteps, st.workflowMeta, {
           excelVersion: st.excelVersion,
           executionContext: st.executionContext,
-          commentLevel: st.executionContext?.commentLevel || 'beginner',
-          beginnerComments: st.beginnerComments
+          commentLevel: st.executionContext?.commentLevel === 'none' ? 'none' : 'with',
+          beginnerComments: st.executionContext?.commentLevel !== 'none'
         });
         lastGenerated = result;
         addHistoryEntry(result);

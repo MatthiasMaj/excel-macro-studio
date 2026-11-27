@@ -154,7 +154,7 @@ export function renderDynamicOperationForm(container, {
              </label>
              <label class="switch-row">
                <input type="checkbox" name="__adv_beginnerComments" ${advancedValues.beginnerComments !== false ? 'checked' : ''}>
-               <span>Ajouter des explications pédagogiques (niveau débutant) dans le code</span>
+               <span>Avec commentaires (explications détaillées pour débutants — décochez pour code sans commentaires)</span>
              </label>
            ` : ''}
          </div>

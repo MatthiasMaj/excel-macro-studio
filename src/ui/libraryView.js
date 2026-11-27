@@ -140,7 +140,8 @@ export function renderLibraryView(container, { navigate, onNotify, openPreview }
         const opts = {
           excelVersion: st.excelVersion,
           executionContext: st.executionContext,
-          commentLevel: st.executionContext?.commentLevel || 'beginner'
+          commentLevel: st.executionContext?.commentLevel === 'none' ? 'none' : 'with',
+          beginnerComments: st.executionContext?.commentLevel !== 'none'
         };
         let res;
         if (tpl.kind === 'workflow') {
