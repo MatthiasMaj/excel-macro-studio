@@ -11,6 +11,7 @@ import { getState, setState, subscribe } from './core/store.js';
 import { EXCEL_CURRICULUM_CHAPTERS } from './services/excelCurriculumData.js';
 import { CURRICULUM_CHAPTERS } from './services/curriculumData.js';
 import { MACRO_TEMPLATES } from './services/templatesLibrary.js';
+import { getAllFormulas, searchFormulas } from './services/formulaCatalog.js';
 import { renderHomeView } from './ui/homeView.js';
 import { renderCatalogView } from './ui/catalogView.js';
 import { renderGuidedView } from './ui/guidedView.js';
@@ -21,6 +22,7 @@ import { renderLibraryView } from './ui/libraryView.js';
 import { renderHistoryView } from './ui/historyView.js';
 import { renderTutorialView } from './ui/tutorialView.js';
 import { renderAuditorView } from './ui/auditorView.js';
+import { renderFormulasView } from './ui/formulasView.js';
 import { renderResultPanel } from './ui/resultPanel.js';
 
 const mainContent = document.getElementById('main-content');
@@ -150,6 +152,9 @@ function updateChromeBadges() {
   const catCountEl = document.getElementById('nav-catalog-count');
   if (catCountEl) catCountEl.textContent = String(ALL_OPERATIONS.length);
 
+  const formCountEl = document.getElementById('nav-formulas-count');
+  if (formCountEl) formCountEl.textContent = String(getAllFormulas().length);
+
   const wbPill = document.getElementById('topbar-workbook-pill');
   const wbLabel = document.getElementById('topbar-workbook-label');
   if (wbPill && wbLabel) {
@@ -195,6 +200,9 @@ function renderCurrentView() {
       break;
     case 'auditor':
       renderAuditorView(mainContent, ctx);
+      break;
+    case 'formulas':
+      renderFormulasView(mainContent, ctx);
       break;
     case 'tutorial':
     case 'learn':
@@ -273,9 +281,18 @@ if (globalSearchInput && globalSearchResults) {
       `${t.title} ${t.description} ${t.domain || ''}`.toLowerCase().includes(qLow)
     ).slice(0, 3);
 
-    const opMatches = searchOperations(q).slice(0, 6);
+    const formulaMatches = searchFormulas(q).slice(0, 4);
+    const opMatches = searchOperations(q).slice(0, 5);
 
     const itemsHtml = [
+      ...formulaMatches.map(
+        (fm) => `
+          <button type="button" class="search-result-item" data-jump-formula="${escapeHtml(fm.id)}">
+            <strong>fx ${escapeHtml(fm.name)}</strong>
+            <span class="field-hint">Formule Niv. ${fm.levelNumber} · ${escapeHtml(fm.presentation.purpose)}</span>
+          </button>
+        `
+      ),
       ...academyMatches.map(
         (c) => `
           <button type="button" class="search-result-item" data-jump-lesson="${escapeHtml(c.id)}" data-jump-track="${escapeHtml(c.track)}">
@@ -306,6 +323,15 @@ if (globalSearchInput && globalSearchResults) {
     globalSearchResults.innerHTML = itemsHtml.length
       ? itemsHtml.join('')
       : '<div class="search-result-item"><span>Aucun résultat trouvé.</span></div>';
+
+    globalSearchResults.querySelectorAll('[data-jump-formula]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setState({ formulaTarget: { subTab: 'lessons', formulaId: btn.dataset.jumpFormula } }, 'formulaTarget');
+        globalSearchResults.hidden = true;
+        globalSearchInput.value = '';
+        navigate('formulas');
+      });
+    });
 
     globalSearchResults.querySelectorAll('[data-jump-op]').forEach((btn) => {
       btn.addEventListener('click', () => {

@@ -33,6 +33,20 @@ import {
 import { annotateVbaForBeginners, stripBeginnerAnnotations, applyCommentLevel } from '../src/engine/vbaBeginnerAnnotator.js';
 import { auditVbaCode } from '../src/engine/vbaAuditor.js';
 import { generateOfficeScript, generateOfficeScriptWorkflow } from '../src/engine/officeScriptsGenerator.js';
+import {
+  buildGridFromTable,
+  evaluateFrenchFormula,
+  analyzeAndTranslateFormula
+} from '../src/engine/excelFormulaEngine.js';
+import { FORMULA_LEVELS, FORMULA_CATALOG, searchFormulas } from '../src/services/formulaCatalog.js';
+import { buildVisualFormula, getBuilderTemplates } from '../src/services/formulaBuilderConfig.js';
+import {
+  FORMULA_CHALLENGES,
+  validateChallengeFormula,
+  recordChallengeOutcome,
+  loadFormulaProgress,
+  resetFormulaProgress
+} from '../src/services/formulaProgress.js';
 import { SCENARIO_DOMAINS } from '../src/services/templatesLibrary.js';
 
 test('Catalogue : 12 catégories A-L et au moins 129 opérations uniques valides', () => {
@@ -362,5 +376,99 @@ test('Générateur Office Scripts (Excel Web), Assistant NL maintenance, Audit V
   assert.equal(ctx.sheets[0].mergedCells.length, 1);
   assert.equal(ctx.sheets[0].formulaErrors.length, 1);
   assert.ok(ctx.sheets[0].inconsistencies.length >= 2);
+});
+
+test('Formules Excel : 38 fiches (5 niveaux) et évaluation en direct des 38 démos interactives', () => {
+  assert.equal(FORMULA_LEVELS.length, 5);
+  assert.equal(FORMULA_CATALOG.length, 38);
+  assert.ok(searchFormulas('RECHERCHEX').length >= 1);
+
+  const ids = new Set();
+  for (const f of FORMULA_CATALOG) {
+    assert.ok(f.id && !ids.has(f.id), `ID formule dupliqué : ${f.id}`);
+    ids.add(f.id);
+    assert.ok(f.presentation?.purpose && f.syntax?.template && f.examples?.length >= 1);
+    assert.ok(f.exercises?.easy && f.exercises?.intermediate && f.exercises?.advanced);
+    assert.ok(f.vbaBridge?.excelFormula && f.vbaBridge?.vbaCode);
+
+    const grid = buildGridFromTable(f.interactiveDemo.headers, f.interactiveDemo.rows);
+    const evalRes = evaluateFrenchFormula(f.interactiveDemo.formula, grid);
+    assert.equal(evalRes.ok, true, `Démo interactive en échec sur ${f.id} (${f.interactiveDemo.formula}) : ${evalRes.error}`);
+  }
+});
+
+test('Moteur Formules FR : évaluateur complet, analyseur/traducteur et erreurs de syntaxe', () => {
+  const analysis = analyzeAndTranslateFormula('=SI(ET(B2>=7;C2="Validé");"Conforme";"À vérifier")', {
+    B2: 8,
+    C2: 'Validé'
+  });
+  assert.equal(analysis.ok, true);
+  assert.equal(analysis.rootFunction, 'SI');
+  assert.deepEqual(analysis.functionsUsed, ['SI', 'ET']);
+  assert.equal(analysis.sampleEval.displayValue, 'Conforme');
+  assert.ok(analysis.stepByStep.some((s) => s.includes('SI')));
+  assert.ok(analysis.stepByStep.some((s) => s.includes('ET')));
+  assert.ok(analysis.vbaBridgeSnippet.includes('If '));
+
+  const badSep = analyzeAndTranslateFormula('=IF(B2>=7,"Conforme","À vérifier")');
+  assert.equal(badSep.ok, false);
+  assert.ok(badSep.syntaxErrors.some((e) => e.includes('point-virgule')));
+  assert.ok(badSep.syntaxErrors.some((e) => e.includes('SI')));
+
+  // Simplification détectée sur CONCATENER / RECHERCHEV
+  const simp = analyzeAndTranslateFormula('=RECHERCHEV(E2;A2:C4;3;FAUX)');
+  assert.ok(simp.simplifications.some((s) => s.reason.includes('RECHERCHEX')));
+
+  // Vérifier quelques calculs avancés (INDEX+EQUIV, FILTRE, UNIQUE, TRIER, MOYENNE.SI.ENS)
+  const grid = {
+    A2: 'CLI-01', B2: 'Alpha', C2: 100,
+    A3: 'CLI-02', B3: 'Beta', C3: 300,
+    A4: 'CLI-03', B4: 'Alpha', C4: 200,
+    E2: 'Beta'
+  };
+  assert.equal(evaluateFrenchFormula('=INDEX(A2:A4;EQUIV(E2;B2:B4;0))', grid).displayValue, 'CLI-02');
+  assert.equal(evaluateFrenchFormula('=UNIQUE(B2:B4)', grid).displayValue, 'Alpha | Beta');
+  assert.equal(evaluateFrenchFormula('=TRIER(C2:C4;1;-1)', grid).displayValue, '300 | 200 | 100');
+  assert.equal(evaluateFrenchFormula('=MOYENNE.SI(B2:B4;"Alpha";C2:C4)', grid).displayValue, '150');
+});
+
+test('Constructeur visuel de formules & Mode Défi adaptatif', () => {
+  assert.ok(getBuilderTemplates().length >= 10);
+
+  // Cas exact du cahier des charges
+  const siSimple = buildVisualFormula('si', {
+    conditions: [{ cell: 'B2', op: '>=', val: '7' }],
+    trueVal: 'Conforme',
+    falseVal: 'À compléter',
+    nestedEnabled: false
+  });
+  assert.equal(siSimple.formula, '=SI(B2>=7;"Conforme";"À compléter")');
+
+  // SI + ET + Imbriqué
+  const siComplex = buildVisualFormula('si', {
+    conditions: [
+      { cell: 'B2', op: '>=', val: '7' },
+      { cell: 'C2', op: '=', val: 'Validé' }
+    ],
+    combiner: 'ET',
+    trueVal: 'Conforme',
+    falseVal: 'Refusé',
+    nestedEnabled: true,
+    nestedCell: 'B2',
+    nestedOp: '>=',
+    nestedVal: '5',
+    nestedTrue: 'Sous réserve'
+  });
+  assert.equal(siComplex.formula, '=SI(ET(B2>=7;C2="Validé");"Conforme";SI(B2>=5;"Sous réserve";"Refusé"))');
+
+  // Défis interactifs : toutes les formules de référence passent sur leur tableau
+  resetFormulaProgress();
+  for (const ch of FORMULA_CHALLENGES) {
+    const res = validateChallengeFormula(ch, ch.referenceFormula);
+    assert.equal(res.ok, true, `Défi en échec : ${ch.id} — ${res.message}`);
+  }
+  const prog = recordChallengeOutcome(FORMULA_CHALLENGES[0].id, true, 10);
+  assert.equal(prog.challengeStats.score, 10);
+  assert.equal(loadFormulaProgress().challengeStats.streak, 1);
 });
 

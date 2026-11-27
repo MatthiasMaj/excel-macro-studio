@@ -8,7 +8,7 @@
 
 [![Démo en ligne](https://img.shields.io/badge/D%C3%A9mo%20en%20ligne-GitHub%20Pages-2563eb?style=for-the-badge&logo=githubpages&logoColor=white)](https://matthiasmaj.github.io/excel-macro-studio/)
 [![Version](https://img.shields.io/badge/Version-1.0.0-16a34a?style=for-the-badge)](./package.json)
-[![Tests](https://img.shields.io/badge/Tests-13%2F13%20passants-10b981?style=for-the-badge&logo=node.js&logoColor=white)](./tests/studio.test.mjs)
+[![Tests](https://img.shields.io/badge/Tests-16%2F16%20passants-10b981?style=for-the-badge&logo=node.js&logoColor=white)](./tests/studio.test.mjs)
 [![Déploiement](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088ff?style=for-the-badge&logo=githubactions&logoColor=white)](./.github/workflows/deploy.yml)
 [![100% Local](https://img.shields.io/badge/Confidentialit%C3%A9-100%25%20Local-0f172a?style=for-the-badge)](#confidentialit%C3%A9-s%C3%A9curit%C3%A9-et-limites-connues)
 
@@ -32,7 +32,8 @@ Toute l'analyse et la génération s'exécutent **100 % côté client dans le na
 
 ## 🧭 Guide d'utilisation rapide
 
-1. **Apprendre pas à pas** : ouvrez **Académie Excel (A & B)**, démarrez par le **Parcours A** si vous débutez sur Excel (aucune programmation requise) ou passez au **Parcours B** pour apprendre le VBA, et téléchargez les classeurs d'entraînement **NovaTech**.
+1. **Apprendre les formules Excel** : ouvrez **Formules Excel (38)** pour maîtriser les 5 niveaux de formules (des fondamentaux aux recherches et tableaux dynamiques 365), manipuler les tableaux interactifs en direct, construire des formules sans syntaxe avec le **Constructeur visuel**, traduire une formule existante ou vous entraîner sur le **Mode Défi**.
+2. **Apprendre pas à pas (Excel & VBA)** : ouvrez **Académie Excel (A & B)**, démarrez par le **Parcours A** si vous débutez sur Excel (aucune programmation requise) ou passez au **Parcours B** pour apprendre le VBA, et téléchargez les classeurs d'entraînement **NovaTech**.
 2. **Adapter à votre fichier réel (recommandé)** : ouvrez **Analyseur Excel** et déposez un classeur (`.xlsx`, `.xlsm`, `.xls`, `.csv`) ou chargez un exemple — vos noms de feuilles et colonnes pré-remplissent ensuite automatiquement les formulaires du générateur.
 3. **Générer une automatisation** :
    - **Assistant (Langage naturel)** : décrivez votre besoin en français, validez/modifiez la reformulation proposée, répondez aux éventuelles questions ciblées puis choisissez votre plateforme (**Windows**, **Mac** ou **Excel Web**).
@@ -42,6 +43,21 @@ Toute l'analyse et la génération s'exécutent **100 % côté client dans le na
    - **Excel Desktop (Windows / Mac)** : importez le fichier `.bas` dans l'éditeur VBA (`Alt + F11` / `Option + F11` → `Fichier > Importer`) ou collez le code, puis enregistrez le classeur au format **`.xlsm`**.
    - **Excel Web (Microsoft 365)** : sélectionnez **Excel Web (Office Scripts)**, récupérez le script **`.osts`**, puis collez-le dans **Automatisation > Nouveau script**.
 6. **Recherche globale** : appuyez sur `/` depuis n'importe quelle vue pour retrouver instantanément une leçon, un scénario métier ou une opération VBA.
+
+---
+
+## 📐 Module « Apprendre les formules Excel » (38 fonctions · 5 niveaux)
+
+* **5 niveaux progressifs** :
+  * **Niveau 1 — Fondamentaux (8)** : `SOMME`, `MOYENNE`, `MIN`, `MAX`, `NB`, `NBVAL`, `AUJOURDHUI`, `MAINTENANT`.
+  * **Niveau 2 — Conditionnelles (7)** : `SI`, `SI imbriqués`, `SI.CONDITIONS`, `ET`, `OU`, `NON`, `SIERREUR`.
+  * **Niveau 3 — Calculs conditionnels (6)** : `SOMME.SI`, `SOMME.SI.ENS`, `NB.SI`, `NB.SI.ENS`, `MOYENNE.SI`, `MOYENNE.SI.ENS`.
+  * **Niveau 4 — Recherches (6)** : `RECHERCHEV`, `RECHERCHEH`, `RECHERCHEX`, `INDEX`, `EQUIV`, `INDEX + EQUIV`.
+  * **Niveau 5 — Avancées & Dynamiques (11)** : `CONCAT`, `CONCATENER`, `GAUCHE`, `DROITE`, `STXT`, `NBCAR`, `SUPPRESPACE`, `TEXTE`, `FILTRE`, `UNIQUE`, `TRIER`.
+* **Fiches pédagogiques interactives** : Présentation, Syntaxe française (`;`), Exemples d'entreprise, **Tableau Excel éditable avec recalcul en temps réel** (`excelFormulaEngine.js`), 3 exercices de difficulté croissante (*Facile*, *Intermédiaire*, *Avancé*) et passerelle Excel ↔ VBA.
+* **Constructeur visuel** (`formulaBuilderConfig.js`) : créez sans connaître la syntaxe des formules `SI` simples, combinées avec `ET`/`OU` ou `SI imbriqués`, `SI.CONDITIONS`, `SOMME.SI(.ENS)`, `NB.SI(.ENS)`, `RECHERCHEX`/`V`, `INDEX+EQUIV`, `SIERREUR` et `CONCAT` avec aperçu temps réel, explication et équivalent VBA.
+* **Analyseur & Traducteur** : collez une formule Excel pour la décomposer argument par argument, obtenir une explication pas à pas, détecter les erreurs courantes (`,`, nom anglais `IF`/`SUM`, guillemets) et voir les pistes de simplification.
+* **Mode Défi & Progression** (`formulaProgress.js`) : problèmes métier concrets évalués en direct, score, séries et niveau adaptatif persistant.
 
 ---
 
@@ -118,6 +134,7 @@ excel-macro-studio/
 │   │   ├── theme.js                   # Thème clair / sombre / système
 │   │   └── validation.js              # Validation des paramètres formulaires
 │   ├── engine/
+│   │   ├── excelFormulaEngine.js    # Parseur AST, évaluateur FR (38 fonctions), traducteur & pont VBA
 │   │   ├── officeScriptsGenerator.js  # Générateur TypeScript (.osts) dédié à Excel Web
 │   │   ├── vbaAuditor.js              # Audit statique, correction non destructive et diff ligne par ligne
 │   │   ├── vbaBeginnerAnnotator.js    # Niveaux de commentaires (Débutant / Intermédiaire / Avancé)
@@ -133,6 +150,11 @@ excel-macro-studio/
 │   │   ├── excelAnalyzer.js           # Analyse locale XLSX/XLSM/CSV + incohérences & plages nommées
 │   │   ├── excelCurriculumData.js     # Parcours A (5 niveaux, 15 chapitres Maîtriser Excel)
 │   │   ├── exportService.js           # Exports .bas, .osts, .txt, kit .xlsx et documentation imprimable
+│   │   ├── formulaBuilderConfig.js    # Modèles extensibles du constructeur visuel de formules
+│   │   ├── formulaCatalog.js          # Agrégateur extensible des 38 fiches formules Excel
+│   │   ├── formulaCatalogAdvanced.js  # Fiches formules Niveaux 4 et 5 (Recherches & Avancées)
+│   │   ├── formulaCatalogData.js      # Fiches formules Niveaux 1 à 3 (Fondamentaux & Conditionnels)
+│   │   ├── formulaProgress.js         # Progression & défis adaptatifs du module Formules
 │   │   ├── naturalLanguageEngine.js   # Moteur sémantique local + décomposition & reformulation
 │   │   ├── templatesLibrary.js        # Scénarios professionnels classés sur 7 domaines métier
 │   │   ├── trainingWorkbook.js        # Classeurs NovaTech (départ 4 onglets + complet 7 onglets)
@@ -144,6 +166,7 @@ excel-macro-studio/
 │   │   ├── catalogView.js             # Navigation du catalogue (12 catégories)
 │   │   ├── exerciseWidget.js          # Composant des 9 types d'exercices interactifs
 │   │   ├── formEngine.js              # Formulaires dynamiques auto-alimentés par le classeur analysé
+│   │   ├── formulasView.js            # Module Formules Excel (Fiches, Constructeur, Traducteur, Défi, Pont VBA)
 │   │   ├── freeView.js                # Mode Assistant (langage naturel + reformulation + contexte)
 │   │   ├── guidedView.js              # Mode Rapide (génération guidée par formulaire)
 │   │   ├── historyView.js             # Mes créations, favoris, versions et comparateur

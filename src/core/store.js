@@ -36,6 +36,7 @@ const initialExecContext = loadExecutionContext();
 const state = {
   activeView: 'home',
   academyTarget: null,
+  formulaTarget: null,
   catalogFilterCategory: 'ALL',
   catalogSearch: '',
   excelVersion: readJson(PERSIST_KEYS.excelVersion, contextToExcelVersion(initialExecContext)),

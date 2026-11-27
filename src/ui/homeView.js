@@ -32,7 +32,8 @@ export function renderHomeView(container, { navigate }) {
             Environnement complet de travail et de formation professionnelle : Académie Excel progressive (avec et sans code), Assistant d'automatisation en français, Audit VBA et Analyseur de classeurs.
           </p>
           <div class="hero-actions">
-            <button type="button" class="btn-primary" data-nav="tutorial">Ouvrir l'Académie Excel (2 parcours)</button>
+            <button type="button" class="btn-primary" data-nav="formulas">Apprendre les formules Excel (38)</button>
+            <button type="button" class="btn-secondary" data-nav="tutorial">Ouvrir l'Académie Excel (2 parcours)</button>
             <button type="button" class="btn-secondary" data-nav="free">Lancer l'Assistant automatisation</button>
             <button type="button" class="btn-secondary" data-nav="guided">Mode rapide (129 opérations)</button>
             <button type="button" class="btn-secondary" data-nav="auditor">Auditer / Corriger une macro VBA</button>
